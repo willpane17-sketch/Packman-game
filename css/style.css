@@ -1,0 +1,165 @@
+/* Tilted Towers Burger Munch - shell + HUD styling */
+:root {
+  --grass-dark: #2f5220;
+  --grass: #47762f;
+  --road: #26282d;
+  --gold: #ffd447;
+  --ink: #0d1411;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+  background:
+    radial-gradient(circle at 78% 18%, rgba(46, 140, 190, 0.55) 0 12%, transparent 40%),
+    radial-gradient(circle at 12% 82%, rgba(70, 130, 45, 0.6) 0 18%, transparent 45%),
+    repeating-linear-gradient(115deg, rgba(0, 0, 0, 0.06) 0 6px, transparent 6px 12px),
+    linear-gradient(160deg, var(--grass) 0%, var(--grass-dark) 60%, #22381a 100%);
+  background-attachment: fixed;
+  color: #fff;
+  font-family: 'Press Start 2P', 'Courier New', monospace;
+  -webkit-font-smoothing: none;
+}
+
+body {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 14px 10px 26px;
+}
+
+.shell {
+  width: min(560px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.topbar, .bottombar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  background: rgba(8, 16, 12, 0.72);
+  border: 2px solid rgba(255, 255, 255, 0.14);
+  border-radius: 10px;
+  box-shadow: 0 6px 0 rgba(0, 0, 0, 0.35);
+  flex-wrap: wrap;
+}
+
+.stat { display: flex; flex-direction: column; gap: 6px; }
+.stat.right { text-align: right; }
+
+.label {
+  font-size: 8px;
+  letter-spacing: 1px;
+  color: #9fe07a;
+  text-transform: uppercase;
+}
+
+.value {
+  font-size: 13px;
+  color: var(--gold);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 18px;
+}
+
+.title-block { flex: 1; text-align: center; }
+
+.title-block h1 {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.6;
+  color: #fff;
+  text-shadow: 2px 2px 0 #000, 0 0 12px rgba(255, 212, 71, 0.5);
+}
+
+.title-block h1 span { display: block; color: var(--gold); font-size: 10px; }
+
+.stage {
+  position: relative;
+  padding: 10px;
+  background: rgba(6, 10, 8, 0.82);
+  border: 3px solid rgba(255, 255, 255, 0.16);
+  border-radius: 12px;
+  box-shadow: 0 10px 0 rgba(0, 0, 0, 0.4), inset 0 0 40px rgba(0, 0, 0, 0.6);
+}
+
+canvas#game {
+  display: block;
+  width: 100%;
+  height: auto;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  border-radius: 6px;
+  background: var(--road);
+  touch-action: none;
+}
+
+.life { width: 20px; height: 24px; image-rendering: pixelated; }
+.loot-icon { width: 20px; height: 20px; image-rendering: pixelated; }
+
+#loot-row { display: flex; gap: 3px; }
+
+.controls { display: flex; gap: 8px; }
+
+button {
+  font-family: inherit;
+  font-size: 9px;
+  padding: 9px 10px;
+  color: #06120b;
+  background: linear-gradient(180deg, #ffe07a, #f0a92c);
+  border: 2px solid #7a4c05;
+  border-radius: 8px;
+  cursor: pointer;
+  box-shadow: 0 3px 0 #6b3f04;
+}
+
+button:active { transform: translateY(2px); box-shadow: 0 1px 0 #6b3f04; }
+
+.dpad { display: none; margin-top: 4px; }
+.dpad-row { display: flex; gap: 10px; justify-content: center; }
+
+.dpad button {
+  width: 62px;
+  height: 48px;
+  font-size: 16px;
+  margin: 4px auto;
+  display: block;
+  background: linear-gradient(180deg, #6fd0ff, #2b86c9);
+  border-color: #114b70;
+  box-shadow: 0 3px 0 #0d3a56;
+  color: #04202f;
+}
+
+.hint {
+  margin: 0;
+  font-size: 8px;
+  line-height: 1.9;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.82);
+  text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.6);
+}
+
+kbd {
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+  padding: 1px 4px;
+}
+
+@media (max-width: 620px) {
+  .title-block h1 { font-size: 9px; }
+  .title-block h1 span { font-size: 8px; }
+  .dpad { display: block; }
+}
+
+@media (pointer: coarse) {
+  .dpad { display: block; }
+}

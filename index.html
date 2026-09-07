@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Tilted Towers Burger Munch</title>
+<meta name="description" content="A Pac-Man style arcade game set in Tilted Towers, starring a pixel burger and four Jonesy ghosts.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <div class="stat">
+        <span class="label">Score</span>
+        <span class="value" id="score">000000</span>
+      </div>
+      <div class="stat title-block">
+        <h1>Tilted Towers <span>Burger Munch</span></h1>
+      </div>
+      <div class="stat right">
+        <span class="label">High</span>
+        <span class="value" id="highscore">000000</span>
+      </div>
+    </header>
+
+    <div class="stage">
+      <canvas id="game" width="448" height="496" aria-label="Game board"></canvas>
+    </div>
+
+    <footer class="bottombar">
+      <div class="stat">
+        <span class="label">Lives</span>
+        <span class="value" id="lives"></span>
+      </div>
+      <div class="stat">
+        <span class="label">Storm</span>
+        <span class="value">Lv <span id="level">1</span></span>
+      </div>
+      <div class="stat">
+        <span class="label">Loot</span>
+        <span class="value" id="loot-row"></span>
+      </div>
+      <div class="controls">
+        <button id="pause-btn" type="button">⏸ Pause</button>
+        <button id="mute-btn" type="button">🔊 Sound on</button>
+      </div>
+    </footer>
+
+    <div class="dpad" aria-hidden="true">
+      <button data-dir="up" type="button">▲</button>
+      <div class="dpad-row">
+        <button data-dir="left" type="button">◀</button>
+        <button data-dir="down" type="button">▼</button>
+        <button data-dir="right" type="button">▶</button>
+      </div>
+    </div>
+
+    <p class="hint">
+      Arrows / WASD to move &middot; <kbd>P</kbd> pause &middot; <kbd>M</kbd> sound &middot;
+      <kbd>Enter</kbd> start. Grab a shield potion to turn the Jonesys blue and eat them.
+    </p>
+  </div>
+
+  <script src="js/maze.js"></script>
+  <script src="js/sprites.js"></script>
+  <script src="js/render.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/game.js"></script>
+</body>
+</html>
