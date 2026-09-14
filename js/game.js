@@ -9,9 +9,10 @@
   'use strict';
 
   const T = Maze.TILE;
-  const TILE = 16;                       // pixels per tile
-  const W = Maze.COLS * TILE;            // 448
-  const H = Maze.ROWS * TILE;            // 496
+  const TILE = 24;                       // pixels per tile
+  const W = Maze.COLS * TILE;            // 672
+  const H = Maze.ROWS * TILE;            // 744
+  const UNIT = TILE / 16;                // everything sized in the old 16px units
   const BASE = TILE * 9.6;               // 100% speed in px/sec
 
   const DIRS = {
@@ -66,7 +67,8 @@
     lives: document.getElementById('lives'),
     loot: document.getElementById('loot-row'),
     mute: document.getElementById('mute-btn'),
-    pause: document.getElementById('pause-btn')
+    pause: document.getElementById('pause-btn'),
+    full: document.getElementById('fullscreen-btn')
   };
 
   /* ------------------------------------------------------------------ */
@@ -162,6 +164,7 @@
   /**
    * Grid-locked movement. Moves `dist` pixels in 1px steps, letting `chooser`
    * pick a new direction every time the entity is centred on a tile.
+   * A chooser may return false to stop the entity on that tile.
    */
   function step(e, dist, chooser) {
     let remaining = dist;
@@ -173,7 +176,7 @@
       if (Math.abs(e.x - cx) < 0.75 && Math.abs(e.y - cy) < 0.75) {
         e.x = cx;
         e.y = cy;
-        chooser(e, tx, ty);
+        if (chooser(e, tx, ty) === false) return;
         const d = DIRS[e.dir];
         if (!d || isWallFor(tx + d.x, ty + d.y, e)) {
           e.moving = false;
@@ -395,8 +398,7 @@
 
   function chooseGhostDir(g, tx, ty) {
     if (g.state === 'eaten') {
-      chooseHomewardDir(g, tx, ty);
-      return;
+      return chooseHomewardDir(g, tx, ty);   // may return false to stop here
     }
     const target = ghostTarget(g);
     const reverse = OPPOSITE[g.dir];
@@ -428,6 +430,14 @@
 
   /** Steepest descent down the BFS field, so the eyes always reach the house. */
   function chooseHomewardDir(g, tx, ty) {
+    if (tx === 13 && ty === 11) {
+      // exactly on the door tile - drop into the house from here. Testing the
+      // tile rather than the distance matters: eyes move fast enough to jump
+      // clean over a proximity check between frames.
+      g.state = 'entering';
+      g.dir = 'down';
+      return false;
+    }
     let best = null;
     let bestDist = homeDistanceAt(tx, ty);
     const reverse = OPPOSITE[g.dir];
@@ -502,16 +512,6 @@
         g.reviveTimer = 0.6;
       }
       return;
-    }
-
-    // eaten ghosts head back to the door, then drop inside
-    if (g.state === 'eaten') {
-      const doorX = centerOf(13), doorY = centerOf(11);
-      if (Math.abs(g.x - doorX) < 1 && Math.abs(g.y - doorY) < 1) {
-        g.x = doorX; g.y = doorY;
-        g.state = 'entering';
-        return;
-      }
     }
 
     step(g, ghostSpeed(g) * dt, chooseGhostDir);
@@ -704,9 +704,9 @@
       for (let x = 0; x < Maze.COLS; x++) {
         const t = game.grid[y][x];
         if (t === T.PELLET) {
-          Sprites.drawCoin(ctx, centerOf(x), centerOf(y), 7);
+          Sprites.drawCoin(ctx, centerOf(x), centerOf(y), TILE * 0.44);
         } else if (t === T.POWER) {
-          Sprites.drawPotion(ctx, centerOf(x), centerOf(y), 14, pulse);
+          Sprites.drawPotion(ctx, centerOf(x), centerOf(y), TILE * 0.875, pulse);
         }
       }
     }
@@ -738,9 +738,9 @@
       ctx.save();
       ctx.globalAlpha = Math.min(1, p.life * 1.6);
       ctx.fillStyle = p.color;
-      ctx.font = 'bold 11px "Press Start 2P", monospace';
+      ctx.font = 'bold ' + Math.round(11 * UNIT) + 'px "Press Start 2P", monospace';
       ctx.textAlign = 'center';
-      ctx.fillText(p.text, p.x, p.y - (1.1 - p.life) * 16);
+      ctx.fillText(p.text, p.x, p.y - (1.1 - p.life) * TILE);
       ctx.restore();
       return true;
     });
@@ -748,9 +748,9 @@
 
   function bannerText(text, y, color, size) {
     ctx.save();
-    ctx.font = 'bold ' + (size || 16) + 'px "Press Start 2P", monospace';
+    ctx.font = 'bold ' + Math.round((size || 16) * UNIT) + 'px "Press Start 2P", monospace';
     ctx.textAlign = 'center';
-    ctx.lineWidth = 4;
+    ctx.lineWidth = 4 * UNIT;
     ctx.strokeStyle = 'rgba(0,0,0,0.85)';
     ctx.strokeText(text, W / 2, y);
     ctx.fillStyle = color;
@@ -794,25 +794,26 @@
 
     // ------- overlays -------
     if (game.state === STATE.READY) {
-      bannerText('READY!', centerOf(17) + 6, '#ffd447', 16);
+      bannerText('READY!', centerOf(17) + 6 * UNIT, '#ffd447', 16);
     }
     if (game.state === STATE.GAME_OVER) {
       ctx.fillStyle = 'rgba(0,0,0,0.62)';
       ctx.fillRect(0, 0, W, H);
-      bannerText('GAME OVER', H / 2 - 26, '#ff5a5a', 22);
-      bannerText('SCORE ' + game.score, H / 2 + 6, '#ffffff', 12);
-      bannerText('PRESS ENTER', H / 2 + 40, '#ffd447', 12);
+      bannerText('GAME OVER', H / 2 - 26 * UNIT, '#ff5a5a', 22);
+      bannerText('SCORE ' + game.score, H / 2 + 6 * UNIT, '#ffffff', 12);
+      bannerText('PRESS ENTER', H / 2 + 40 * UNIT, '#ffd447', 12);
     }
     if (game.state === STATE.TITLE) {
       ctx.fillStyle = 'rgba(0,0,0,0.68)';
       ctx.fillRect(0, 0, W, H);
-      bannerText('TILTED TOWERS', 130, '#ffd447', 20);
-      bannerText('BURGER MUNCH', 162, '#ff9ad5', 20);
-      Sprites.drawPac(ctx, W / 2 - 60, 230, 34, 'right', Math.abs(Math.sin(game.frame * 0.08)));
-      Sprites.drawGhost(ctx, W / 2 + 10, 230, 30, '#e8412f', Math.floor(game.frame / 8) % 2, 'normal', 'left');
-      Sprites.drawGhost(ctx, W / 2 + 60, 230, 30, '#3fd8e8', Math.floor(game.frame / 8) % 2, 'normal', 'left');
-      bannerText('ARROWS / WASD TO MOVE', 300, '#ffffff', 10);
-      bannerText('PRESS ENTER TO DROP IN', 330, '#7ef0ff', 12);
+      bannerText('TILTED TOWERS', H * 0.26, '#ffd447', 20);
+      bannerText('BURGER MUNCH', H * 0.33, '#ff9ad5', 20);
+      const demoY = H * 0.46;
+      Sprites.drawPac(ctx, W / 2 - 60 * UNIT, demoY, 34 * UNIT, 'right', Math.abs(Math.sin(game.frame * 0.08)));
+      Sprites.drawGhost(ctx, W / 2 + 10 * UNIT, demoY, 30 * UNIT, '#e8412f', Math.floor(game.frame / 8) % 2, 'normal', 'left');
+      Sprites.drawGhost(ctx, W / 2 + 60 * UNIT, demoY, 30 * UNIT, '#3fd8e8', Math.floor(game.frame / 8) % 2, 'normal', 'left');
+      bannerText('ARROWS / WASD TO MOVE', H * 0.62, '#ffffff', 10);
+      bannerText('PRESS ENTER TO DROP IN', H * 0.68, '#7ef0ff', 12);
     }
     if (game.paused && game.state === STATE.PLAY) {
       ctx.fillStyle = 'rgba(0,0,0,0.55)';
@@ -836,13 +837,23 @@
     hud.score.textContent = String(game.score).padStart(6, '0');
     hud.high.textContent = String(game.high).padStart(6, '0');
     hud.level.textContent = String(game.level);
+    // Draw at most a handful of icons and count the rest, so a long run of
+    // extra lives can never push the HUD out of shape.
+    const MAX_ICONS = 3;
+    const lives = Math.max(0, game.lives);
     hud.lives.innerHTML = '';
-    for (let i = 0; i < Math.max(0, game.lives - (game.state === STATE.GAME_OVER ? 0 : 0)); i++) {
+    for (let i = 0; i < Math.min(lives, MAX_ICONS); i++) {
       const img = document.createElement('img');
       img.src = lifeIconCache;
       img.alt = 'life';
       img.className = 'life';
       hud.lives.appendChild(img);
+    }
+    if (lives > MAX_ICONS) {
+      const more = document.createElement('span');
+      more.className = 'life-count';
+      more.textContent = '\u00d7' + lives;
+      hud.lives.appendChild(more);
     }
   }
 
@@ -935,6 +946,7 @@
     }
     if (e.code === 'KeyP') togglePause();
     if (e.code === 'KeyM') toggleMute();
+    if (e.code === 'KeyF') toggleFullscreen();
   });
 
   function togglePause() {
@@ -947,6 +959,29 @@
   function toggleMute() {
     const m = Sound.toggleMute();
     hud.mute.textContent = m ? '🔇 Sound off' : '🔊 Sound on';
+  }
+
+  function toggleFullscreen() {
+    const root = document.documentElement;
+    if (!document.fullscreenElement) {
+      const req = root.requestFullscreen || root.webkitRequestFullscreen;
+      if (req) req.call(root);
+    } else {
+      const exit = document.exitFullscreen || document.webkitExitFullscreen;
+      if (exit) exit.call(document);
+    }
+  }
+
+  document.addEventListener('fullscreenchange', function () {
+    hud.full.textContent = document.fullscreenElement ? '⛶ Exit full screen' : '⛶ Full screen';
+    if (window.Layout) window.Layout.fit();
+  });
+
+  if (hud.full) {
+    if (!document.documentElement.requestFullscreen && !document.documentElement.webkitRequestFullscreen) {
+      hud.full.style.display = 'none';    // unsupported, e.g. iPhone Safari
+    }
+    hud.full.addEventListener('click', toggleFullscreen);
   }
 
   hud.pause.addEventListener('click', function () {
@@ -996,5 +1031,5 @@
   requestAnimationFrame(frame);
 
   // exposed for the smoke test / debugging in the console
-  window.__game = { game: game, pac: pac, ghosts: ghosts, startGame: startGame, STATE: STATE };
+  window.__game = { game: game, pac: pac, ghosts: ghosts, startGame: startGame, STATE: STATE, TILE: TILE, updateHud: updateHud };
 })();

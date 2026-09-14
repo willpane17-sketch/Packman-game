@@ -1,5 +1,10 @@
 /* Tilted Towers Burger Munch - shell + HUD styling */
 :root {
+  /* The board is 28x31 tiles, so its aspect ratio is 0.903 wide-to-tall.
+     Size it from whichever runs out first - the width of the window or the
+     height left over after the HUD - and let it grow as far as it can. */
+  --chrome: 265px;
+  --board: min(94vw, calc((100vh - var(--chrome)) * 0.903), 1040px);
   --grass-dark: #2f5220;
   --grass: #47762f;
   --road: #26282d;
@@ -38,6 +43,10 @@ body { background: transparent; }
   pointer-events: none;
 }
 
+@supports (height: 100svh) {
+  :root { --board: min(94vw, calc((100svh - var(--chrome)) * 0.903), 1040px); }
+}
+
 body {
   display: flex;
   justify-content: center;
@@ -48,7 +57,8 @@ body {
 .shell {
   position: relative;
   z-index: 1;
-  width: min(560px, 100%);
+  /* board + the stage's padding and border, so the HUD lines up with it */
+  width: min(calc(var(--board) + var(--stage-chrome, 26px)), 100%);
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -72,14 +82,14 @@ body {
 .stat.right { text-align: right; }
 
 .label {
-  font-size: 8px;
+  font-size: clamp(8px, calc(var(--board) / 56), 13px);
   letter-spacing: 1px;
   color: #9fe07a;
   text-transform: uppercase;
 }
 
 .value {
-  font-size: 13px;
+  font-size: clamp(13px, calc(var(--board) / 34), 22px);
   color: var(--gold);
   display: flex;
   align-items: center;
@@ -91,13 +101,17 @@ body {
 
 .title-block h1 {
   margin: 0;
-  font-size: 12px;
+  font-size: clamp(12px, calc(var(--board) / 38), 20px);
   line-height: 1.6;
   color: #fff;
   text-shadow: 2px 2px 0 #000, 0 0 12px rgba(255, 212, 71, 0.5);
 }
 
-.title-block h1 span { display: block; color: var(--gold); font-size: 10px; }
+.title-block h1 span {
+  display: block;
+  color: var(--gold);
+  font-size: clamp(10px, calc(var(--board) / 46), 16px);
+}
 
 .stage {
   position: relative;
@@ -111,7 +125,8 @@ body {
 
 canvas#game {
   display: block;
-  width: 100%;
+  width: var(--board);
+  max-width: 100%;
   height: auto;
   image-rendering: pixelated;
   image-rendering: crisp-edges;
@@ -120,8 +135,17 @@ canvas#game {
   touch-action: none;
 }
 
-.life { width: 20px; height: 24px; image-rendering: pixelated; }
-.loot-icon { width: 20px; height: 20px; image-rendering: pixelated; }
+.life {
+  width: clamp(20px, calc(var(--board) / 22), 34px);
+  height: auto;
+  image-rendering: pixelated;
+}
+
+.loot-icon {
+  width: clamp(20px, calc(var(--board) / 24), 30px);
+  height: auto;
+  image-rendering: pixelated;
+}
 
 #loot-row { display: flex; gap: 3px; }
 
@@ -129,8 +153,8 @@ canvas#game {
 
 button {
   font-family: inherit;
-  font-size: 9px;
-  padding: 9px 10px;
+  font-size: clamp(9px, calc(var(--board) / 48), 14px);
+  padding: clamp(9px, calc(var(--board) / 50), 14px) clamp(10px, calc(var(--board) / 44), 18px);
   color: #06120b;
   background: linear-gradient(180deg, #ffe07a, #f0a92c);
   border: 2px solid #7a4c05;
@@ -159,7 +183,7 @@ button:active { transform: translateY(2px); box-shadow: 0 1px 0 #6b3f04; }
 .hint {
   margin: 0;
   padding: 9px 12px;
-  font-size: 8px;
+  font-size: clamp(8px, calc(var(--board) / 58), 12px);
   line-height: 1.9;
   text-align: center;
   color: rgba(255, 255, 255, 0.88);
@@ -178,11 +202,46 @@ kbd {
 }
 
 @media (max-width: 620px) {
-  .title-block h1 { font-size: 9px; }
-  .title-block h1 span { font-size: 8px; }
+  :root { --chrome: 210px; --board: min(96vw, calc((100vh - 210px) * 0.903)); }
   .dpad { display: block; }
+}
+
+@supports (height: 100svh) {
+  @media (max-width: 620px) {
+    :root { --board: min(96vw, calc((100svh - 210px) * 0.903)); }
+  }
 }
 
 @media (pointer: coarse) {
   .dpad { display: block; }
 }
+
+/* Short windows: trim the chrome so the maze keeps the space instead.
+   The controls are spelled out on the title screen, so the hint line goes
+   first. */
+@media (max-height: 850px) and (min-width: 621px) {
+  body { padding: 8px 10px 10px; }
+  .shell { gap: 6px; }
+  .topbar, .bottombar { padding: 6px 10px; }
+  .stage { padding: 6px; }
+  .hint { display: none; }
+  .stat { gap: 3px; }
+}
+
+@media (max-height: 700px) and (min-width: 621px) {
+  .topbar .title-block { display: none; }
+}
+
+/* In full screen the board owns the window, so drop the outer breathing room. */
+:fullscreen body { padding: 6px 8px 8px; }
+:fullscreen .hint { display: none; }
+
+#lives {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: nowrap;
+  overflow: hidden;
+}
+
+.life-count { color: var(--gold); }

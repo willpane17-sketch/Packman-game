@@ -29,7 +29,7 @@
     </header>
 
     <div class="stage">
-      <canvas id="game" width="448" height="496" aria-label="Game board"></canvas>
+      <canvas id="game" width="672" height="744" aria-label="Game board"></canvas>
     </div>
 
     <footer class="bottombar">
@@ -47,6 +47,7 @@
       </div>
       <div class="controls">
         <button id="pause-btn" type="button">⏸ Pause</button>
+        <button id="fullscreen-btn" type="button">⛶ Full screen</button>
         <button id="mute-btn" type="button">🔊 Sound on</button>
       </div>
     </footer>
@@ -62,11 +63,12 @@
 
     <p class="hint">
       Arrows / WASD to move &middot; <kbd>P</kbd> pause &middot; <kbd>M</kbd> sound &middot;
-      <kbd>Enter</kbd> start. Grab a shield potion to turn the Jonesys blue and eat them.
+      <kbd>F</kbd> full screen &middot; <kbd>Enter</kbd> start. Grab a shield potion to turn the Jonesys blue and eat them.
     </p>
   </div>
 
   <script src="js/backdrop.js"></script>
+  <script src="js/layout.js"></script>
   <script src="js/maze.js"></script>
   <script src="js/sprites.js"></script>
   <script src="js/render.js"></script>

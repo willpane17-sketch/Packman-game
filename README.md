@@ -29,6 +29,7 @@ python3 -m http.server 8000
 | Enter / Space | Start, restart, pause |
 | P | Pause |
 | M | Sound on / off |
+| F | Full screen |
 | Swipe or on-screen D-pad | Move (touch devices) |
 
 ## What's implemented
@@ -54,6 +55,10 @@ follow the arcade closely:
 - **The map behind the board**, drawn procedurally and repainted on resize, so
   the city block reads as the middle of Tilted Towers rather than a board on a
   blank page.
+- **Fills the window.** The board is drawn at 24px tiles (672 x 744) and scaled
+  to the largest size that still leaves room for the HUD, measured live rather
+  than guessed, so it grows with the window instead of sitting at a fixed
+  width. `F` or the button goes full screen.
 - Lives, an extra life at 10 000, level progression with rising speeds,
   death and level-clear animations, a `localStorage` high score, pause, and a
   WebAudio blip synth for every sound effect.
@@ -64,6 +69,7 @@ follow the arcade closely:
 index.html        page shell and HUD
 css/style.css     styling, responsive + touch layout
 js/backdrop.js    the aerial map of Tilted Towers behind the page
+js/layout.js      sizes the board to fill the window without clipping the HUD
 js/maze.js        the 28x31 tile map and tile helpers
 js/sprites.js     all pixel art: burger, Jonesys, coins, potions, loot
 js/render.js      paints the Tilted Towers board to an offscreen canvas
