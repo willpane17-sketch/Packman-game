@@ -8,6 +8,7 @@ new cast:
 | Pac-Man          | a pixel **burger** (sesame bun, cheese, patty, olive)   |
 | The four ghosts  | four **pixel Jonesy** operators, colour-coded by squad  |
 | The blue maze    | the **Tilted Towers** city block — concrete towers, asphalt roads, grass and the river on the east side |
+| A black screen   | the **Tilted Towers aerial map** behind the board — terrain, the river, the roads into town, tree cover and outskirts buildings |
 | Dots / power pellets | gold **coins** / blue **shield potions**           |
 | Cherries & fruit | **loot** — llama, fries, chug jug, shield              |
 
@@ -50,6 +51,9 @@ follow the arcade closely:
 - **The tunnel** wraps on row 14, and ghosts crawl through it.
 - **Loot** appears twice a level (after 70 and 170 pick-ups) and is worth
   100 – 1000 points depending on the level.
+- **The map behind the board**, drawn procedurally and repainted on resize, so
+  the city block reads as the middle of Tilted Towers rather than a board on a
+  blank page.
 - Lives, an extra life at 10 000, level progression with rising speeds,
   death and level-clear animations, a `localStorage` high score, pause, and a
   WebAudio blip synth for every sound effect.
@@ -59,6 +63,7 @@ follow the arcade closely:
 ```
 index.html        page shell and HUD
 css/style.css     styling, responsive + touch layout
+js/backdrop.js    the aerial map of Tilted Towers behind the page
 js/maze.js        the 28x31 tile map and tile helpers
 js/sprites.js     all pixel art: burger, Jonesys, coins, potions, loot
 js/render.js      paints the Tilted Towers board to an offscreen canvas
