@@ -54,6 +54,74 @@
 
   const FRIGHT_TIME = [6, 5, 4, 3, 2, 5, 2, 2, 1, 5, 2, 1, 1, 3, 1, 1, 0, 1, 0];
 
+  /* ------------------------------------------------------------------ */
+  /* DIFFICULTY                                                          */
+  /* Each mode scales the same arcade curves rather than replacing them, */
+  /* so level progression still behaves the way it should.               */
+  /* ------------------------------------------------------------------ */
+  const DIFFICULTIES = {
+    easy: {
+      key: 'easy',
+      name: 'EASY',
+      color: '#7ee07a',
+      blurb: '5 LIVES - SLOW JONESYS - LONG POTIONS',
+      lives: 5,
+      pac: 1.06,          // scales the burger's speed curve
+      ghost: 0.78,        // scales the ghosts' speed curve
+      fright: 2.0,        // scales how long a shield potion lasts
+      frightFloor: 7,     // ...and never less than this many seconds
+      release: 2,         // scales the house dot counters (ghosts come out later)
+      stall: 7,           // seconds of no pick-ups before a ghost is forced out
+      scatter: 1.7,       // scales the scatter phases (more time not being hunted)
+      extraLife: 8000,
+      scoreMul: 1
+    },
+    hard: {
+      key: 'hard',
+      name: 'HARD',
+      color: '#ffd447',
+      blurb: 'ARCADE RULES - 3 LIVES - DOUBLE SCORE',
+      lives: 3,
+      pac: 1,
+      ghost: 1,
+      fright: 1,
+      frightFloor: 1,
+      release: 1,
+      stall: 4,
+      scatter: 1,
+      extraLife: 10000,
+      scoreMul: 2
+    },
+    extreme: {
+      key: 'extreme',
+      name: 'EXTREME',
+      color: '#ff5a5a',
+      blurb: '1 LIFE - FASTER THAN YOU - ALL FOUR HUNT AT ONCE',
+      lives: 1,
+      pac: 1,
+      ghost: 1.18,        // the Jonesys out-run the burger
+      fright: 0.45,
+      frightFloor: 0,
+      release: 0,         // everyone leaves the house immediately
+      stall: 1,
+      scatter: 0.35,      // barely any respite from the chase
+      extraLife: 25000,
+      scoreMul: 4
+    }
+  };
+
+  const DIFFICULTY_ORDER = ['easy', 'hard', 'extreme'];
+  const HIGH_KEY_PREFIX = 'tt-burger-high-';
+
+  function storedHigh(key) {
+    const own = Number(localStorage.getItem(HIGH_KEY_PREFIX + key) || 0);
+    // scores from before difficulty existed were played on the arcade balance
+    if (key === 'hard' && !own) return Number(localStorage.getItem('tt-burger-high') || 0);
+    return own;
+  }
+
+  function diff() { return DIFFICULTIES[game.difficulty]; }
+
   const canvas = document.getElementById('game');
   const ctx = canvas.getContext('2d');
   canvas.width = W;
@@ -66,6 +134,7 @@
     level: document.getElementById('level'),
     lives: document.getElementById('lives'),
     loot: document.getElementById('loot-row'),
+    modeBtn: document.getElementById('mode-btn'),
     mute: document.getElementById('mute-btn'),
     pause: document.getElementById('pause-btn'),
     full: document.getElementById('fullscreen-btn')
@@ -76,13 +145,15 @@
   /* ------------------------------------------------------------------ */
   const game = {
     state: STATE.TITLE,
+    difficulty: DIFFICULTY_ORDER.indexOf(localStorage.getItem('tt-burger-mode')) >= 0
+      ? localStorage.getItem('tt-burger-mode') : 'easy',
     grid: null,
     board: null,
     pelletsLeft: 0,
     pelletsTotal: 0,
     dotsEaten: 0,
     score: 0,
-    high: Number(localStorage.getItem('tt-burger-high') || 0),
+    high: 0,
     level: 1,
     lives: 3,
     paused: false,
@@ -283,10 +354,32 @@
     game.releaseTimer = 0;
   }
 
+  /** Switch difficulty. Only meaningful outside a run, so callers check. */
+  function setDifficulty(key) {
+    if (!DIFFICULTIES[key] || key === game.difficulty) return;
+    game.difficulty = key;
+    localStorage.setItem('tt-burger-mode', key);
+    game.high = storedHigh(key);
+    updateHud();
+    renderModeButtons();
+    Sound.unlock();
+    Sound.waka();
+  }
+
+  function cycleDifficulty(step) {
+    const i = DIFFICULTY_ORDER.indexOf(game.difficulty);
+    const next = (i + step + DIFFICULTY_ORDER.length) % DIFFICULTY_ORDER.length;
+    setDifficulty(DIFFICULTY_ORDER[next]);
+  }
+
+  function modeSelectable() {
+    return game.state === STATE.TITLE || game.state === STATE.GAME_OVER;
+  }
+
   function startGame() {
     game.score = 0;
     game.level = 1;
-    game.lives = 3;
+    game.lives = diff().lives;
     game.extraAwarded = false;
     game.popups = [];
     loadLevel(true);
@@ -295,6 +388,7 @@
     Sound.unlock();
     Sound.start();
     updateHud();
+    renderModeButtons();
   }
 
   function nextLevel() {
@@ -311,9 +405,10 @@
     if (game.lives <= 0) {
       game.state = STATE.GAME_OVER;
       Sound.gameOver();
+      renderModeButtons();
       if (game.score > game.high) {
         game.high = game.score;
-        localStorage.setItem('tt-burger-high', String(game.high));
+        localStorage.setItem(HIGH_KEY_PREFIX + diff().key, String(game.high));
         updateHud();
       }
     } else {
@@ -333,7 +428,7 @@
     const l = game.level;
     let f = l === 1 ? 0.80 : (l < 5 ? 0.90 : (l < 21 ? 1.0 : 0.90));
     if (game.frightTimer > 0) f += 0.06;
-    return BASE * f;
+    return BASE * f * diff().pac;
   }
 
   function ghostSpeed(g) {
@@ -342,6 +437,7 @@
     if (g.state === 'leaving' || g.state === 'entering') return BASE * 0.55;
     let f = l === 1 ? 0.75 : (l < 5 ? 0.85 : 0.95);
     if (g.frightened) f = l === 1 ? 0.50 : (l < 5 ? 0.55 : 0.60);
+    f *= diff().ghost;
     // slow crawl through the tunnel
     const ty = tileOf(g.y);
     const tx = tileOf(g.x);
@@ -350,7 +446,9 @@
   }
 
   function frightDuration() {
-    return FRIGHT_TIME[Math.min(game.level - 1, FRIGHT_TIME.length - 1)];
+    const base = FRIGHT_TIME[Math.min(game.level - 1, FRIGHT_TIME.length - 1)];
+    const d = diff();
+    return Math.max(d.frightFloor, base * d.fright);
   }
 
   /* ------------------------------------------------------------------ */
@@ -542,15 +640,16 @@
   }
 
   function addScore(n) {
-    game.score += n;
-    if (!game.extraAwarded && game.score >= 10000) {
+    const d = diff();
+    game.score += n * d.scoreMul;
+    if (!game.extraAwarded && game.score >= d.extraLife) {
       game.extraAwarded = true;
       game.lives++;
       Sound.extraLife();
     }
     if (game.score > game.high) {
       game.high = game.score;
-      localStorage.setItem('tt-burger-high', String(game.high));
+      localStorage.setItem(HIGH_KEY_PREFIX + d.key, String(game.high));
     }
     updateHud();
   }
@@ -643,8 +742,9 @@
       }
     } else {
       const entry = MODE_TABLE[game.modeIndex];
+      const phase = entry.mode === 'scatter' ? entry.time * diff().scatter : entry.time;
       game.modeTimer += dt;
-      if (game.modeTimer >= entry.time) {
+      if (game.modeTimer >= phase) {
         game.modeTimer = 0;
         game.modeIndex = Math.min(game.modeIndex + 1, MODE_TABLE.length - 1);
         const newMode = MODE_TABLE[game.modeIndex].mode;
@@ -661,7 +761,8 @@
     game.releaseTimer += dt;
     ghosts.forEach(function (g) {
       if (g.state !== 'house' || g.released || g.reviveTimer > 0) return;
-      if (game.dotsEaten >= g.def.dotLimit || game.releaseTimer > 4) {
+      const d = diff();
+      if (game.dotsEaten >= g.def.dotLimit * d.release || game.releaseTimer > d.stall) {
         g.released = true;
       }
     });
@@ -794,31 +895,52 @@
 
     // ------- overlays -------
     if (game.state === STATE.READY) {
-      bannerText('READY!', centerOf(17) + 6 * UNIT, '#ffd447', 16);
+      bannerText('READY!', centerOf(17) + 6 * UNIT, diff().color, 16);
     }
     if (game.state === STATE.GAME_OVER) {
       ctx.fillStyle = 'rgba(0,0,0,0.62)';
       ctx.fillRect(0, 0, W, H);
-      bannerText('GAME OVER', H / 2 - 26 * UNIT, '#ff5a5a', 22);
-      bannerText('SCORE ' + game.score, H / 2 + 6 * UNIT, '#ffffff', 12);
-      bannerText('PRESS ENTER', H / 2 + 40 * UNIT, '#ffd447', 12);
+      bannerText('GAME OVER', H / 2 - 46 * UNIT, '#ff5a5a', 22);
+      bannerText('SCORE ' + game.score, H / 2 - 14 * UNIT, '#ffffff', 12);
+      bannerText(diff().name + ' MODE', H / 2 + 12 * UNIT, diff().color, 10);
+      bannerText('PRESS ENTER TO PLAY AGAIN', H / 2 + 42 * UNIT, '#ffd447', 10);
+      bannerText('1-3 TO CHANGE MODE', H / 2 + 66 * UNIT, 'rgba(255,255,255,0.65)', 9);
     }
     if (game.state === STATE.TITLE) {
-      ctx.fillStyle = 'rgba(0,0,0,0.68)';
+      ctx.fillStyle = 'rgba(0,0,0,0.7)';
       ctx.fillRect(0, 0, W, H);
-      bannerText('TILTED TOWERS', H * 0.26, '#ffd447', 20);
-      bannerText('BURGER MUNCH', H * 0.33, '#ff9ad5', 20);
-      const demoY = H * 0.46;
+      bannerText('TILTED TOWERS', H * 0.17, '#ffd447', 20);
+      bannerText('BURGER MUNCH', H * 0.23, '#ff9ad5', 20);
+      const demoY = H * 0.33;
       Sprites.drawPac(ctx, W / 2 - 60 * UNIT, demoY, 34 * UNIT, 'right', Math.abs(Math.sin(game.frame * 0.08)));
       Sprites.drawGhost(ctx, W / 2 + 10 * UNIT, demoY, 30 * UNIT, '#e8412f', Math.floor(game.frame / 8) % 2, 'normal', 'left');
       Sprites.drawGhost(ctx, W / 2 + 60 * UNIT, demoY, 30 * UNIT, '#3fd8e8', Math.floor(game.frame / 8) % 2, 'normal', 'left');
-      bannerText('ARROWS / WASD TO MOVE', H * 0.62, '#ffffff', 10);
-      bannerText('PRESS ENTER TO DROP IN', H * 0.68, '#7ef0ff', 12);
+      drawModeMenu(H * 0.45);
+      bannerText('ARROWS OR 1-3 TO CHOOSE', H * 0.80, '#ffffff', 9);
+      bannerText('PRESS ENTER TO DROP IN', H * 0.86, '#7ef0ff', 12);
     }
     if (game.paused && game.state === STATE.PLAY) {
       ctx.fillStyle = 'rgba(0,0,0,0.55)';
       ctx.fillRect(0, 0, W, H);
       bannerText('PAUSED', H / 2, '#ffffff', 20);
+    }
+  }
+
+  /** The three difficulty rows, with the selected one called out. */
+  function drawModeMenu(top) {
+    bannerText('SELECT MODE', top, '#ffffff', 10);
+    DIFFICULTY_ORDER.forEach(function (key, i) {
+      const d = DIFFICULTIES[key];
+      const y = top + (0.055 + i * 0.055) * H;
+      const on = key === game.difficulty;
+      const blink = on && Math.floor(game.frame / 18) % 2 === 0;
+      bannerText((blink ? '> ' : '  ') + d.name + (blink ? ' <' : '  '),
+        y, on ? d.color : 'rgba(255,255,255,0.35)', on ? 16 : 12);
+    });
+    const sel = diff();
+    bannerText(sel.blurb, top + 0.235 * H, sel.color, 8);
+    if (sel.scoreMul > 1) {
+      bannerText('SCORE x' + sel.scoreMul, top + 0.285 * H, '#ffd447', 9);
     }
   }
 
@@ -834,13 +956,16 @@
   })();
 
   function updateHud() {
+    renderModeButtons();
     hud.score.textContent = String(game.score).padStart(6, '0');
     hud.high.textContent = String(game.high).padStart(6, '0');
     hud.level.textContent = String(game.level);
     // Draw at most a handful of icons and count the rest, so a long run of
     // extra lives can never push the HUD out of shape.
     const MAX_ICONS = 3;
-    const lives = Math.max(0, game.lives);
+    // On the menus, preview what the selected mode gives you rather than
+    // whatever the last run ended on.
+    const lives = Math.max(0, game.state === STATE.TITLE ? diff().lives : game.lives);
     hud.lives.innerHTML = '';
     for (let i = 0; i < Math.min(lives, MAX_ICONS); i++) {
       const img = document.createElement('img');
@@ -855,6 +980,18 @@
       more.textContent = '\u00d7' + lives;
       hud.lives.appendChild(more);
     }
+  }
+
+  /** One compact button that cycles modes, live only between runs. */
+  function renderModeButtons() {
+    if (!hud.modeBtn) return;
+    const d = diff();
+    hud.modeBtn.textContent = d.name;
+    hud.modeBtn.style.setProperty('--mode-color', d.color);
+    hud.modeBtn.disabled = !modeSelectable();
+    hud.modeBtn.title = modeSelectable()
+      ? 'Click to change difficulty (or press 1, 2, 3)'
+      : 'Finish this run to change difficulty';
   }
 
   function renderLootRow() {
@@ -932,7 +1069,23 @@
     Sound.unlock();
   }
 
+  const MODE_KEYS = { Digit1: 'easy', Digit2: 'hard', Digit3: 'extreme',
+    Numpad1: 'easy', Numpad2: 'hard', Numpad3: 'extreme' };
+
   window.addEventListener('keydown', function (e) {
+    if (MODE_KEYS[e.code] && modeSelectable()) {
+      e.preventDefault();
+      setDifficulty(MODE_KEYS[e.code]);
+      return;
+    }
+    // on the menus the arrow keys pick a mode - there is nothing to steer
+    if (modeSelectable() && KEY_DIRS[e.code]) {
+      e.preventDefault();
+      const dir = KEY_DIRS[e.code];
+      if (dir === 'up' || dir === 'left') cycleDifficulty(-1);
+      else cycleDifficulty(1);
+      return;
+    }
     if (KEY_DIRS[e.code]) {
       e.preventDefault();
       setDir(KEY_DIRS[e.code]);
@@ -990,6 +1143,13 @@
   });
   hud.mute.addEventListener('click', toggleMute);
 
+  if (hud.modeBtn) {
+    hud.modeBtn.addEventListener('click', function () {
+      if (!modeSelectable()) return;
+      cycleDifficulty(1);
+    });
+  }
+
   // touch: swipe anywhere plus an on-screen pad
   let touchStart = null;
   canvas.addEventListener('touchstart', function (e) {
@@ -1025,11 +1185,13 @@
   /* ------------------------------------------------------------------ */
   /* BOOT                                                                */
   /* ------------------------------------------------------------------ */
+  game.high = storedHigh(game.difficulty);
   loadLevel(true);
   updateHud();
+  renderModeButtons();
   renderLootRow();
   requestAnimationFrame(frame);
 
   // exposed for the smoke test / debugging in the console
-  window.__game = { game: game, pac: pac, ghosts: ghosts, startGame: startGame, STATE: STATE, TILE: TILE, updateHud: updateHud };
+  window.__game = { game: game, pac: pac, ghosts: ghosts, startGame: startGame, STATE: STATE, TILE: TILE, updateHud: updateHud, setDifficulty: setDifficulty, DIFFICULTIES: DIFFICULTIES };
 })();

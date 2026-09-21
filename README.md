@@ -30,7 +30,29 @@ python3 -m http.server 8000
 | P | Pause |
 | M | Sound on / off |
 | F | Full screen |
+| 1 / 2 / 3 | Easy / Hard / Extreme (on the menus) |
 | Swipe or on-screen D-pad | Move (touch devices) |
+
+## Difficulty
+
+Pick a mode on the title screen with the arrow keys, <kbd>1</kbd>/<kbd>2</kbd>/<kbd>3</kbd>,
+or the Mode button in the HUD. Each mode scales the arcade curves rather than
+replacing them, so level progression still behaves properly, and each keeps its
+own high score.
+
+| | Easy | Hard | Extreme |
+| --- | --- | --- | --- |
+| Lives | 5 | 3 | 1 |
+| Burger speed | 197 px/s | 188 px/s | 189 px/s |
+| Jonesy speed | 138 px/s | 173 px/s | **208 px/s — faster than you** |
+| Shield potion | 14s, never under 7s | arcade table (6s, falling) | ~2.7s, falls away fast |
+| Ghosts out of the house | late (doubled dot counters) | arcade counters | all four immediately |
+| Scatter (safe) phases | 1.7x longer | arcade | barely any |
+| Extra life | 8 000 | 10 000 | 25 000 |
+| Score | x1 | x2 | x4 |
+
+The mode is remembered between visits, and the picker locks while a run is in
+progress.
 
 ## What's implemented
 

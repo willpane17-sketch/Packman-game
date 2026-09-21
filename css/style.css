@@ -245,3 +245,23 @@ kbd {
 }
 
 .life-count { color: var(--gold); }
+
+/* Difficulty picker: one compact button that cycles modes. It is only live
+   between runs, which it shows by going flat and unclickable during a game. */
+.mode-btn {
+  --mode-color: var(--gold);
+  padding: 4px 10px;
+  font-size: clamp(11px, calc(var(--board) / 40), 18px);
+  color: #06120b;
+  background: linear-gradient(180deg, #ffffff, var(--mode-color));
+  border: 2px solid rgba(0, 0, 0, 0.45);
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.45);
+  min-height: 0;
+}
+
+.mode-btn:disabled {
+  cursor: default;
+  opacity: 0.75;
+  box-shadow: none;
+  transform: none;
+}
