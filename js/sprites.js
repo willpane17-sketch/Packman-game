@@ -177,20 +177,10 @@
   /* ------------------------------------------------------------------ */
   const G_W = 22;
   const G_H = 22;
-  const G_CX = 11;
-  const G_CY = 11.6;
-  const G_R = 9.6;
 
-  const TOM_RED = '#e0392c';
-  const TOM_RED_D = '#a8241b';
-  const TOM_RED_L = '#f4604f';
-  const TOM_SEED = '#ffb3a4';
   const LEAF = '#4f9a2f';
   const LEAF_D = '#2f6b1b';
   const STALK = '#7a5a25';
-  const MOUTH = '#4a1410';
-  const TOOTH = '#fdf6ef';
-  const TONGUE = '#e2657a';
 
   function mix(hex, other, k) {
     const a = parseInt(hex.slice(1), 16), b = parseInt(other.slice(1), 16);
@@ -200,73 +190,84 @@
     return 'rgb(' + r + ',' + g + ',' + bl + ')';
   }
 
-  /**
-   * The three tones of a tomato in a given colour. Blinky's red is the
-   * Tomato Head as it comes; the other three are colour variants, which is
-   * what keeps the four tellable apart at a glance.
-   */
-  function tomatoTones(mode, color) {
-    if (mode === 'fright') return { light: '#3b4cf0', base: '#2b3ce0', dark: '#12227a' };
-    if (mode === 'flash') return { light: '#ffffff', base: '#f4f4f4', dark: '#b8b8b8' };
-    return {
-      light: mix(color, '#ffffff', 0.3),
-      base: color,
-      dark: mix(color, '#000000', 0.42)
-    };
+  // Tomato Head is red, full stop. What tells the four apart is the collar
+  // below the head, which is why the head can stay accurate.
+  const TOMATO_HEAD = { light: '#f4685a', base: '#e2392b', dark: '#a81f16', spec: '#ff9c90' };
+  const FRIGHT = { light: '#4b5cf5', base: '#2b3ce0', dark: '#101f78', spec: '#8c98ff' };
+  const FLASHT = { light: '#ffffff', base: '#f0f0f0', dark: '#b0b0b0', spec: '#ffffff' };
+
+  function headTones(mode) {
+    if (mode === 'fright') return FRIGHT;
+    if (mode === 'flash') return FLASHT;
+    return TOMATO_HEAD;
   }
 
+  const HEAD_CX = 11;
+  const HEAD_CY = 10.4;
+  const HEAD_R = 8.9;
+
   /**
-   * Tomato Head: a round tomato, the same silhouette family as the burger,
-   * with the mascot's leafy crown, big eyes and wide grin.
+   * Tomato Head: the round red tomato with its leafy crown, big eyes and
+   * mascot grin, over a collar in this ghost's colour.
    */
   function paintTomato(ctx, color, frame, mode) {
-    const t = tomatoTones(mode, color);
+    const t = headTones(mode);
+
+    // ---- collar, drawn first so the head overlaps it ----
+    const collar = mode === 'fright' ? '#1b2ba8' : (mode === 'flash' ? '#c8c8c8' : color);
+    const collarD = mix(mode === 'fright' ? '#1b2ba8' : (mode === 'flash' ? '#c8c8c8' : color), '#000000', 0.45);
+    px(ctx, 3, 17, collarD, 16, 5);
+    px(ctx, 4, 17, collar, 14, 3);
+    px(ctx, 2, 19, collarD, 18, 2);
+    px(ctx, 3, 19, collar, 16, 1);
+    // a couple of folds so the collar is not a flat slab
+    px(ctx, 6, 20, collarD, 2, 1);
+    px(ctx, 14, 20, collarD, 2, 1);
+
+    // ---- the tomato ----
     for (let y = 0; y < G_H; y++) {
       for (let x = 0; x < G_W; x++) {
-        const dx = x + 0.5 - G_CX;
-        const dy = y + 0.5 - G_CY;
+        const dx = x + 0.5 - HEAD_CX;
+        const dy = y + 0.5 - HEAD_CY;
         const d = Math.sqrt(dx * dx + dy * dy);
-        if (d > G_R) continue;
-        px(ctx, x, y, d > G_R - 1.2 ? t.dark : (d > G_R - 2.8 ? t.base : t.light));
+        if (d > HEAD_R) continue;
+        px(ctx, x, y, d > HEAD_R - 1.2 ? t.dark : (d > HEAD_R - 2.6 ? t.base : t.light));
       }
     }
+    // waxy specular highlight, top left
+    px(ctx, 5, 4, t.spec, 3, 1);
+    px(ctx, 4, 5, t.spec, 2, 2);
+    px(ctx, 6, 5, t.light, 1, 1);
 
-    // a waxy highlight and a couple of seed flecks
-    px(ctx, 5, 5, t.light, 3, 1);
-    px(ctx, 4, 6, t.light, 2, 2);
-    if (mode !== 'fright' && mode !== 'flash') {
-      px(ctx, 16, 13, mix(color, '#ffffff', 0.55), 1, 1);
-      px(ctx, 5, 15, mix(color, '#ffffff', 0.55), 1, 1);
-    }
-
-    // leafy crown and stalk
+    // ---- leafy crown ----
     const leaf = mode === 'flash' ? '#c9c9c9' : LEAF;
     const leafD = mode === 'flash' ? '#9a9a9a' : LEAF_D;
     px(ctx, 10, 0, STALK, 2, 3);
-    px(ctx, 9, 0, STALK, 1, 1);
-    px(ctx, 6, 2, leaf, 4, 1);
-    px(ctx, 12, 2, leaf, 4, 1);
-    px(ctx, 3, 3, leaf, 7, 2);
-    px(ctx, 12, 3, leaf, 7, 2);
-    px(ctx, 5, 5, leaf, 4, 1);
-    px(ctx, 13, 5, leaf, 4, 1);
-    px(ctx, 3, 4, leafD, 3, 1);
-    px(ctx, 16, 4, leafD, 3, 1);
-    px(ctx, 8, 3, leafD, 2, 1);
-    px(ctx, 12, 3, leafD, 2, 1);
-
-    // collar below the head, in the same colour
-    px(ctx, 6, 19, t.dark, 10, 2);
-    px(ctx, 5, 20, t.dark, 12, 1);
-    px(ctx, 7, 19, t.base, 8, 1);
+    px(ctx, 9, 1, STALK, 1, 1);
+    // five leaves radiating from the stalk
+    px(ctx, 7, 2, leaf, 3, 1);
+    px(ctx, 12, 2, leaf, 3, 1);
+    px(ctx, 4, 3, leaf, 6, 2);
+    px(ctx, 12, 3, leaf, 6, 2);
+    px(ctx, 9, 3, leaf, 4, 1);
+    px(ctx, 3, 4, leaf, 3, 1);
+    px(ctx, 16, 4, leaf, 3, 1);
+    px(ctx, 6, 5, leaf, 2, 1);
+    px(ctx, 14, 5, leaf, 2, 1);
+    px(ctx, 3, 5, leafD, 3, 1);
+    px(ctx, 16, 5, leafD, 3, 1);
+    px(ctx, 8, 4, leafD, 2, 1);
+    px(ctx, 12, 4, leafD, 2, 1);
+    px(ctx, 5, 4, leafD, 2, 1);
+    px(ctx, 15, 4, leafD, 1, 1);
   }
 
   function paintFace(ctx, dir, mode) {
     if (mode === 'fright' || mode === 'flash') {
       const fg = mode === 'flash' ? '#d02020' : '#ffffff';
-      px(ctx, 6, 9, fg, 2, 2);
-      px(ctx, 14, 9, fg, 2, 2);
-      for (let x = 5; x <= 16; x++) px(ctx, x, 14 + (x % 2 === 0 ? 0 : 1), fg);
+      px(ctx, 6, 8, fg, 2, 2);
+      px(ctx, 14, 8, fg, 2, 2);
+      for (let x = 5; x <= 16; x++) px(ctx, x, 13 + (x % 2 === 0 ? 0 : 1), fg);
       return;
     }
     let ox = 0, oy = 0;
@@ -275,21 +276,22 @@
     if (dir === 'up') oy = -1;
     if (dir === 'down') oy = 1;
 
-    // eyes
-    px(ctx, 5, 8, '#2a0c08', 5, 5);
-    px(ctx, 12, 8, '#2a0c08', 5, 5);
-    px(ctx, 6, 9, '#ffffff', 4, 4);
-    px(ctx, 13, 9, '#ffffff', 4, 4);
-    px(ctx, 7 + ox, 10 + oy, '#141414', 2, 2);
-    px(ctx, 14 + ox, 10 + oy, '#141414', 2, 2);
-    px(ctx, 6, 9, '#ffffff', 1, 1);
+    // big mascot eyes
+    px(ctx, 5, 7, '#2a0c08', 5, 5);
+    px(ctx, 12, 7, '#2a0c08', 5, 5);
+    px(ctx, 6, 8, '#ffffff', 4, 4);
+    px(ctx, 13, 8, '#ffffff', 4, 4);
+    px(ctx, 7 + ox, 9 + oy, '#141414', 2, 2);
+    px(ctx, 14 + ox, 9 + oy, '#141414', 2, 2);
+    px(ctx, 6, 8, '#ffffff', 1, 1);
+    px(ctx, 13, 8, '#ffffff', 1, 1);
 
-    // the big mascot grin
-    px(ctx, 5, 14, MOUTH, 12, 4);
-    px(ctx, 4, 15, MOUTH, 14, 2);
-    px(ctx, 6, 14, TOOTH, 10, 1);
-    px(ctx, 7, 17, TONGUE, 8, 1);
-    px(ctx, 8, 18, TONGUE, 6, 1);
+    // the wide grin: dark mouth, tooth row, tongue
+    px(ctx, 5, 13, '#4a1410', 12, 4);
+    px(ctx, 4, 14, '#4a1410', 14, 2);
+    px(ctx, 6, 13, '#fdf6ef', 10, 1);
+    px(ctx, 7, 16, '#e2657a', 8, 1);
+    px(ctx, 9, 17, '#e2657a', 4, 1);
   }
 
   const ghostCache = {};
@@ -299,20 +301,17 @@
     if (ghostCache[key]) return ghostCache[key];
     const c = makeCanvas(G_W, G_H);
     if (mode === 'eaten') {
-      px(c.ctx, 5, 8, '#ffffff', 5, 5);
-      px(c.ctx, 12, 8, '#ffffff', 5, 5);
-      paintFace(c.ctx, dir, 'eyesonly');
-      // keep only the eyes: repaint them over a cleared canvas
+      // keep only the eyes
       const e = makeCanvas(G_W, G_H);
-      px(e.ctx, 5, 8, '#ffffff', 5, 5);
-      px(e.ctx, 12, 8, '#ffffff', 5, 5);
+      px(e.ctx, 5, 7, '#ffffff', 5, 5);
+      px(e.ctx, 12, 7, '#ffffff', 5, 5);
       let ox = 0, oy = 0;
       if (dir === 'left') ox = -1;
       if (dir === 'right') ox = 1;
       if (dir === 'up') oy = -1;
       if (dir === 'down') oy = 1;
-      px(e.ctx, 6 + ox, 9 + oy, '#1b3fd8', 2, 2);
-      px(e.ctx, 13 + ox, 9 + oy, '#1b3fd8', 2, 2);
+      px(e.ctx, 6 + ox, 8 + oy, '#1b3fd8', 2, 2);
+      px(e.ctx, 13 + ox, 8 + oy, '#1b3fd8', 2, 2);
       ghostCache[key] = e.canvas;
       return e.canvas;
     }
@@ -324,9 +323,9 @@
 
   function drawGhost(ctx, cx, cy, size, color, frame, mode, dir) {
     const img = ghostSprite(color, frame, mode, dir);
-    const scale = size / 19;          // the head spans about 19 of 22 columns
+    const scale = size / 19;          // the head spans about 18 of 22 columns
     ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(img, Math.round(cx - G_CX * scale), Math.round(cy - G_CY * scale),
+    ctx.drawImage(img, Math.round(cx - 11 * scale), Math.round(cy - 11 * scale),
       G_W * scale, G_H * scale);
   }
 
@@ -353,29 +352,32 @@
    * white label.
    */
   const CHUG_JUG = [
-    '    NN      ',
-    '   cNNc     ',
-    '   YYYY     ',
-    '  jYYYYj H  ',
-    ' jYYYYYYjHH ',
-    ' YYYYYYYYhH ',
-    ' YWWWWWWYhH ',
-    ' YWLLLLWYhH ',
-    ' YWWWWWWYhH ',
-    ' YYYYYYYYhH ',
-    ' YYYYYYYYHH ',
-    ' jYYYYYYj H ',
-    ' jYYYYYYj   ',
-    '  jjjjjj    '
+    '     CCCC       ',
+    '    cCCCCc      ',
+    '    sYYYYs      ',
+    '   jYYYYYYj     ',
+    '  jYYYYYYYYj HH ',
+    ' jYYYYYYYYYYjHHH',
+    ' YYYYYYYYYYYYH h',
+    ' YWWWWWWWWWWYH h',
+    ' YWBBBBBBBBWYH h',
+    ' YWWWWWWWWWWYH h',
+    ' YYYYYYYYYYYYH h',
+    ' YYYYYYYYYYYYHHH',
+    ' YYYYYYYYYYYY HH',
+    ' jYYYYYYYYYYj   ',
+    '  jYYYYYYYYj    ',
+    '   jjjjjjjj     '
   ];
 
 
 
   const PICKUP_COLORS = {
     C: '#dfe6ef', c: '#9aa6b6', N: '#c9d2dd',            // steel
-    B: '#4fc3ff', b: '#1b74b8', d: '#17608f', s: '#eafaff', // shield blue
-    Y: '#f0bb36', y: '#b3811a', j: '#8a5f10',             // jug amber
+    B: '#4fc3ff', b: '#1b74b8', d: '#17608f', s: '#ffe58a', // shield blue / jug sheen
+    Y: '#f5c132', y: '#b3811a', j: '#8a5f10',             // jug amber
     W: '#f2f5f8', L: '#2f7fd4',                           // label
+    S: '#ffe58a',                                         // liquid highlight
     H: '#c7a02a', h: '#9a7a18',                           // handle
     w: '#ffffff', A: '#7ef0ff'
   };
@@ -439,8 +441,8 @@
 
   /** Chug jugs stand in for the power pellets. */
   function drawPotion(ctx, cx, cy, size, pulse) {
-    const s = (size / 13) * (0.92 + 0.12 * pulse);
-    const w = 12 * s, h = 14 * s;
+    const s = (size / 15) * (0.92 + 0.12 * pulse);
+    const w = 16 * s, h = 16 * s;
     ctx.imageSmoothingEnabled = false;
     ctx.save();
     ctx.shadowColor = 'rgba(255,205,80,0.9)';

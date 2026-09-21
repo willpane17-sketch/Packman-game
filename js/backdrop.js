@@ -20,7 +20,7 @@
     };
   }
 
-  const GRASS = ['#4f8236', '#598c3c', '#457430', '#628f45', '#3d6a2a', '#6d9950'];
+  const GRASS = ['#569237', '#63a040', '#4a8130', '#6fac4a', '#437a2c', '#7bb855'];
   const ROOFS = ['#b9bec4', '#a8aeb5', '#8e5a44', '#9c6b4a', '#cdc3ae', '#7f8790', '#6f7d88'];
   const ASPHALT = '#8d9298';
   const ASPHALT_D = '#6f757c';
@@ -191,6 +191,80 @@
     }
   }
 
+
+  /** A pitched-roof house: the small dwellings dotted around a POI. */
+  function house(ctx, x, y, w, h, rand) {
+    ctx.fillStyle = 'rgba(8,16,10,0.4)';
+    ctx.fillRect(x + 4, y + 5, w, h);
+    const roof = ['#8e4b3a', '#6d7f8c', '#8a7452', '#4f7a5e'][Math.floor(rand() * 4)];
+    ctx.fillStyle = roof;
+    ctx.fillRect(x, y, w, h);
+    // ridge line down the middle
+    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+    if (w > h) ctx.fillRect(x, y + h / 2 - 1, w, 2);
+    else ctx.fillRect(x + w / 2 - 1, y, 2, h);
+    ctx.strokeStyle = 'rgba(0,0,0,0.25)';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(x, y, w, h);
+  }
+
+  /** A fenced paddock or crop field. */
+  function field(ctx, x, y, w, h, rand) {
+    const crop = rand() > 0.5;
+    ctx.fillStyle = crop ? '#b39a45' : '#5f9a3c';
+    ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = crop ? 'rgba(140,116,40,0.6)' : 'rgba(60,110,40,0.5)';
+    for (let i = 0; i < w; i += 9) ctx.fillRect(x + i, y, 3, h);
+    ctx.strokeStyle = '#c3b28c';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x, y, w, h);
+  }
+
+  /** A pond, with a shallow rim. */
+  function pond(ctx, x, y, r, rand) {
+    ctx.fillStyle = '#7d8a4e';
+    blob(ctx, x, y, r * 1.15, '#7d8a4e', rand);
+    blob(ctx, x, y, r, '#3a86ab', rand);
+    blob(ctx, x, y, r * 0.7, '#4fa3c6', rand);
+    ctx.fillStyle = 'rgba(255,255,255,0.25)';
+    ctx.fillRect(x - r * 0.4, y - r * 0.2, r * 0.6, 2);
+  }
+
+  /** A parked vehicle, seen from above. */
+  function vehicle(ctx, x, y, a, rand) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(a);
+    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    ctx.fillRect(-5, -9, 12, 20);
+    ctx.fillStyle = ['#c0392b', '#2d6fb8', '#e8e8e8', '#2f2f35', '#e0a32e'][Math.floor(rand() * 5)];
+    ctx.fillRect(-6, -10, 12, 20);
+    ctx.fillStyle = 'rgba(180,220,255,0.7)';
+    ctx.fillRect(-4.5, -6, 9, 5);
+    ctx.fillRect(-4.5, 2, 9, 4);
+    ctx.restore();
+  }
+
+  /** A campsite tent. */
+  function tent(ctx, x, y, s, rand) {
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.beginPath();
+    ctx.moveTo(x - s + 3, y + s * 0.7 + 3);
+    ctx.lineTo(x + 3, y - s * 0.8 + 3);
+    ctx.lineTo(x + s + 3, y + s * 0.7 + 3);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = ['#d97a2e', '#3f7fae', '#c9c2a8'][Math.floor(rand() * 3)];
+    ctx.beginPath();
+    ctx.moveTo(x - s, y + s * 0.7);
+    ctx.lineTo(x, y - s * 0.8);
+    ctx.lineTo(x + s, y + s * 0.7);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    ctx.fillRect(x - 1.5, y - s * 0.6, 3, s * 1.3);
+  }
+
   function vignette(ctx, w, h, strength) {
     const cx = w / 2, cy = h / 2;
     const v = ctx.createRadialGradient(cx, cy, Math.min(w, h) * 0.28, cx, cy, Math.max(w, h) * 0.78);
@@ -210,9 +284,9 @@
     const rand = rng(20250914);
 
     const base = ctx.createLinearGradient(0, 0, w * 0.3, h);
-    base.addColorStop(0, '#598c3c');
-    base.addColorStop(0.55, '#4a7c33');
-    base.addColorStop(1, '#3c6729');
+    base.addColorStop(0, '#68a544');
+    base.addColorStop(0.55, '#568d38');
+    base.addColorStop(1, '#46772e');
     ctx.fillStyle = base;
     ctx.fillRect(0, 0, w, h);
     groundTexture(ctx, w, h, rand);
@@ -230,10 +304,10 @@
     ctx.strokeStyle = '#c9c193';                 // sand
     ctx.lineWidth = w * 0.135;
     stroke(ctx, riverPts);
-    ctx.strokeStyle = '#2f6f92';                 // deep water
+    ctx.strokeStyle = '#2f83ab';                 // deep water
     ctx.lineWidth = w * 0.115;
     stroke(ctx, riverPts);
-    ctx.strokeStyle = '#3f90b5';
+    ctx.strokeStyle = '#49a8cf';
     ctx.lineWidth = w * 0.085;
     stroke(ctx, riverPts);
     ctx.strokeStyle = 'rgba(190,230,245,0.25)';
@@ -288,6 +362,27 @@
         x += cw + 9 + rand() * 14;
       }
     });
+
+    // ---- outskirts: houses, fields, ponds, parked cars ----
+    [[0.05, 0.45], [0.08, 0.92], [0.3, 0.95], [0.88, 0.05], [0.93, 0.42], [0.62, 0.96]]
+      .forEach(function (pt) {
+        for (let i = 0; i < 3; i++) {
+          house(ctx, w * pt[0] + (rand() - 0.5) * 90, h * pt[1] + (rand() - 0.5) * 70,
+            22 + rand() * 26, 18 + rand() * 22, rand);
+        }
+      });
+    field(ctx, w * 0.02, h * 0.16, w * 0.12, h * 0.1, rand);
+    field(ctx, w * 0.84, h * 0.7, w * 0.12, h * 0.12, rand);
+    pond(ctx, w * 0.2, h * 0.08, Math.min(w, h) * 0.035, rand);
+    pond(ctx, w * 0.07, h * 0.72, Math.min(w, h) * 0.028, rand);
+    for (let i = 0; i < 14; i++) {
+      const onTop = rand() > 0.5;
+      vehicle(ctx, rand() * w, onTop ? h * (0.2 + rand() * 0.06) : h * (0.74 + rand() * 0.08),
+        (rand() - 0.5) * 0.5 + Math.PI / 2, rand);
+    }
+    for (let i = 0; i < 4; i++) {
+      tent(ctx, w * (0.06 + rand() * 0.06), h * (0.3 + rand() * 0.3), 9 + rand() * 6, rand);
+    }
 
     // ---- treelines along the edges ----
     for (let i = 0; i < 26; i++) {
@@ -430,6 +525,25 @@
       const by = cy - site * 0.65 + rand() * (site * 1.3 - bh);
       building(ctx, bx, by, bw, bh, rand, rand() > 0.5 ? '#dfe3e7' : '#9fb6c4');
     }
+
+    // survey camp and vehicles around the dig
+    for (let i = 0; i < 5; i++) {
+      tent(ctx, cx + (rand() - 0.5) * site * 3.4, cy + (rand() - 0.5) * site * 2.4,
+        8 + rand() * 6, rand);
+    }
+    for (let i = 0; i < 6; i++) {
+      vehicle(ctx, cx + (rand() - 0.5) * site * 4, cy + (rand() - 0.5) * site * 2.8,
+        rand() * Math.PI, rand);
+    }
+    // houses and fields out on the untouched grass
+    [[0.06, 0.1], [0.9, 0.12], [0.08, 0.9], [0.9, 0.88]].forEach(function (pt) {
+      for (let i = 0; i < 3; i++) {
+        house(ctx, w * pt[0] + (rand() - 0.5) * 80, h * pt[1] + (rand() - 0.5) * 60,
+          22 + rand() * 24, 18 + rand() * 20, rand);
+      }
+    });
+    field(ctx, w * 0.02, h * 0.42, w * 0.1, h * 0.12, rand);
+    pond(ctx, w * 0.93, h * 0.62, Math.min(w, h) * 0.03, rand);
 
     // trees ringing the blast
     for (let i = 0; i < 30; i++) {
