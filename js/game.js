@@ -30,6 +30,7 @@
     PLAY: 'play',
     DYING: 'dying',
     LEVEL_CLEAR: 'levelclear',
+    WIN: 'win',
     GAME_OVER: 'gameover'
   };
 
@@ -66,6 +67,7 @@
       color: '#7ee07a',
       blurb: '5 LIVES - SLOW JONESYS - LONG POTIONS',
       lives: 5,
+      levels: 5,          // clear this many boards to win the run
       pac: 1.06,          // scales the burger's speed curve
       ghost: 0.78,        // scales the ghosts' speed curve
       fright: 2.0,        // scales how long a shield potion lasts
@@ -82,6 +84,7 @@
       color: '#ffd447',
       blurb: 'ARCADE RULES - 3 LIVES - DOUBLE SCORE',
       lives: 3,
+      levels: 8,
       pac: 1,
       ghost: 1,
       fright: 1,
@@ -98,6 +101,7 @@
       color: '#ff5a5a',
       blurb: '1 LIFE - FASTER THAN YOU - ALL FOUR HUNT AT ONCE',
       lives: 1,
+      levels: 3,
       pac: 1,
       ghost: 1.18,        // the Jonesys out-run the burger
       fright: 0.45,
@@ -175,6 +179,9 @@
     popups: [],
     sirenTimer: 0,
     extraAwarded: false,
+    winTimer: 0,
+    wins: 0,
+    confetti: [],
     frame: 0
   };
 
@@ -373,7 +380,8 @@
   }
 
   function modeSelectable() {
-    return game.state === STATE.TITLE || game.state === STATE.GAME_OVER;
+    return game.state === STATE.TITLE || game.state === STATE.GAME_OVER
+      || game.state === STATE.WIN;
   }
 
   function startGame() {
@@ -392,11 +400,32 @@
   }
 
   function nextLevel() {
+    if (game.level >= diff().levels) {
+      winGame();
+      return;
+    }
     game.level++;
     loadLevel(false);
     game.state = STATE.READY;
     game.readyTimer = 1.8;
     updateHud();
+  }
+
+  /** Every board on this difficulty cleared: Victory Royale. */
+  function winGame() {
+    game.state = STATE.WIN;
+    game.winTimer = 0;
+    spawnConfetti();
+    Sound.victory();
+    if (game.score > game.high) {
+      game.high = game.score;
+      localStorage.setItem(HIGH_KEY_PREFIX + diff().key, String(game.high));
+    }
+    const wins = Number(localStorage.getItem('tt-burger-wins-' + diff().key) || 0) + 1;
+    localStorage.setItem('tt-burger-wins-' + diff().key, String(wins));
+    game.wins = wins;
+    updateHud();
+    renderModeButtons();
   }
 
   function loseLife() {
@@ -886,7 +915,8 @@
 
     if (game.state === STATE.DYING) {
       Sprites.drawPacDeath(ctx, pac.x, pac.y, TILE * 1.35, Math.min(1, game.deathTimer / 1.3));
-    } else if (game.state !== STATE.LEVEL_CLEAR && game.state !== STATE.TITLE) {
+    } else if (game.state !== STATE.LEVEL_CLEAR && game.state !== STATE.TITLE
+      && game.state !== STATE.WIN) {
       drawGhosts();
       drawPac();
     }
@@ -897,6 +927,8 @@
     if (game.state === STATE.READY) {
       bannerText('READY!', centerOf(17) + 6 * UNIT, diff().color, 16);
     }
+    if (game.state === STATE.WIN) drawVictory();
+
     if (game.state === STATE.GAME_OVER) {
       ctx.fillStyle = 'rgba(0,0,0,0.62)';
       ctx.fillRect(0, 0, W, H);
@@ -924,6 +956,95 @@
       ctx.fillRect(0, 0, W, H);
       bannerText('PAUSED', H / 2, '#ffffff', 20);
     }
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* VICTORY                                                             */
+  /* ------------------------------------------------------------------ */
+  const CONFETTI_COLORS = ['#ffd447', '#ff9ad5', '#3fd8e8', '#7ee07a', '#ffffff', '#f2a03c'];
+
+  function spawnConfetti() {
+    game.confetti = [];
+    for (let i = 0; i < 90; i++) {
+      game.confetti.push({
+        x: Math.random() * W,
+        y: -Math.random() * H * 0.6,
+        vy: 40 + Math.random() * 120,
+        vx: (Math.random() - 0.5) * 50,
+        size: 3 + Math.random() * 5,
+        spin: (Math.random() - 0.5) * 8,
+        angle: Math.random() * Math.PI,
+        color: CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)]
+      });
+    }
+  }
+
+  function updateConfetti(dt) {
+    game.confetti.forEach(function (c) {
+      c.x += c.vx * dt;
+      c.y += c.vy * dt;
+      c.angle += c.spin * dt;
+      if (c.y > H + 10) {          // recycle so the party keeps going
+        c.y = -10;
+        c.x = Math.random() * W;
+      }
+    });
+  }
+
+  function drawConfetti() {
+    game.confetti.forEach(function (c) {
+      ctx.save();
+      ctx.translate(c.x, c.y);
+      ctx.rotate(c.angle);
+      ctx.fillStyle = c.color;
+      ctx.fillRect(-c.size / 2, -c.size / 2, c.size, c.size * 1.6);
+      ctx.restore();
+    });
+  }
+
+  function drawVictory() {
+    ctx.fillStyle = 'rgba(4, 10, 18, 0.78)';
+    ctx.fillRect(0, 0, W, H);
+    drawConfetti();
+
+    const pop = Math.min(1, game.winTimer / 0.45);
+    const scale = 0.7 + 0.3 * pop;
+
+    ctx.save();
+    ctx.translate(W / 2, H * 0.34);
+    ctx.scale(scale, scale);
+    ctx.textAlign = 'center';
+    ctx.font = 'bold ' + Math.round(34 * UNIT) + 'px "Press Start 2P", monospace';
+    ctx.lineWidth = 6 * UNIT;
+    ctx.strokeStyle = 'rgba(0,0,0,0.9)';
+    ctx.strokeText('#1', 0, 0);
+    ctx.fillStyle = '#ffd447';
+    ctx.fillText('#1', 0, 0);
+    ctx.restore();
+
+    ctx.save();
+    ctx.globalAlpha = pop;
+    ctx.shadowColor = 'rgba(120, 220, 255, 0.85)';
+    ctx.shadowBlur = 18 + Math.sin(game.frame * 0.12) * 10;
+    bannerText('VICTORY', H * 0.45, '#ffffff', 26);
+    bannerText('ROYALE', H * 0.52, '#7ef0ff', 26);
+    ctx.restore();
+
+    const y = H * 0.62;
+    bannerText(diff().name + ' MODE CLEARED', y, diff().color, 11);
+    bannerText('ALL ' + diff().levels + ' BOARDS', y + H * 0.05, '#ffffff', 10);
+    bannerText('SCORE ' + game.score, y + H * 0.10, '#ffd447', 14);
+    if (game.wins > 1) {
+      bannerText('WIN #' + game.wins + ' ON THIS MODE', y + H * 0.145, 'rgba(255,255,255,0.7)', 8);
+    }
+    bannerText('PRESS ENTER TO PLAY AGAIN', H * 0.86, '#ffd447', 10);
+    if (game.difficulty !== 'extreme') {
+      bannerText('1-3 TO TRY A HARDER MODE', H * 0.91, 'rgba(255,255,255,0.65)', 8);
+    }
+
+    // the champion burger, front and centre
+    Sprites.drawPac(ctx, W / 2, H * 0.19, 46 * UNIT, 'right',
+      Math.abs(Math.sin(game.frame * 0.09)));
   }
 
   /** The three difficulty rows, with the selected one called out. */
@@ -959,7 +1080,7 @@
     renderModeButtons();
     hud.score.textContent = String(game.score).padStart(6, '0');
     hud.high.textContent = String(game.high).padStart(6, '0');
-    hud.level.textContent = String(game.level);
+    hud.level.textContent = game.level + '/' + diff().levels;
     // Draw at most a handful of icons and count the rest, so a long run of
     // extra lives can never push the HUD out of shape.
     const MAX_ICONS = 3;
@@ -1051,6 +1172,11 @@
         if (game.flashTimer <= 0) nextLevel();
         break;
 
+      case STATE.WIN:
+        game.winTimer += dt;
+        updateConfetti(dt);
+        break;
+
       default:
         break;
     }
@@ -1093,7 +1219,7 @@
     }
     if (e.code === 'Enter' || e.code === 'Space') {
       e.preventDefault();
-      if (game.state === STATE.TITLE || game.state === STATE.GAME_OVER) startGame();
+      if (modeSelectable()) startGame();
       else togglePause();
       return;
     }
@@ -1138,7 +1264,7 @@
   }
 
   hud.pause.addEventListener('click', function () {
-    if (game.state === STATE.TITLE || game.state === STATE.GAME_OVER) startGame();
+    if (modeSelectable()) startGame();
     else togglePause();
   });
   hud.mute.addEventListener('click', toggleMute);
@@ -1155,7 +1281,7 @@
   canvas.addEventListener('touchstart', function (e) {
     const t = e.changedTouches[0];
     touchStart = { x: t.clientX, y: t.clientY };
-    if (game.state === STATE.TITLE || game.state === STATE.GAME_OVER) startGame();
+    if (modeSelectable()) startGame();
   }, { passive: true });
 
   canvas.addEventListener('touchend', function (e) {
@@ -1179,7 +1305,7 @@
 
   canvas.addEventListener('mousedown', function () {
     Sound.unlock();
-    if (game.state === STATE.TITLE || game.state === STATE.GAME_OVER) startGame();
+    if (modeSelectable()) startGame();
   });
 
   /* ------------------------------------------------------------------ */

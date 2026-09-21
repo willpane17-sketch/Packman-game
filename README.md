@@ -42,6 +42,7 @@ own high score.
 
 | | Easy | Hard | Extreme |
 | --- | --- | --- | --- |
+| Boards to win | 5 | 8 | 3 |
 | Lives | 5 | 3 | 1 |
 | Burger speed | 197 px/s | 188 px/s | 189 px/s |
 | Jonesy speed | 138 px/s | 173 px/s | **208 px/s — faster than you** |
@@ -50,6 +51,11 @@ own high score.
 | Scatter (safe) phases | 1.7x longer | arcade | barely any |
 | Extra life | 8 000 | 10 000 | 25 000 |
 | Score | x1 | x2 | x4 |
+
+Clear every board on a mode and you get a **Victory Royale** — #1, confetti, a
+fanfare and your final score, with your win count on that mode kept alongside
+its high score. The HUD counts your progress (`Lv 3/5`), so the finish line is
+always visible.
 
 The mode is remembered between visits, and the picker locks while a run is in
 progress.
@@ -74,6 +80,8 @@ follow the arcade closely:
 - **The tunnel** wraps on row 14, and ghosts crawl through it.
 - **Loot** appears twice a level (after 70 and 170 pick-ups) and is worth
   100 – 1000 points depending on the level.
+- **A real ending.** Clearing the last board on a mode wins the run outright
+  rather than looping forever.
 - **The map behind the board**, drawn procedurally and repainted on resize, so
   the city block reads as the middle of Tilted Towers rather than a board on a
   blank page.

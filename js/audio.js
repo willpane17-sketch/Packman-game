@@ -65,6 +65,19 @@
       const notes = [523, 659, 784, 1046, 784, 1046];
       notes.forEach(function (n, i) { tone(n, 0.13, 'square', 0.07, i * 0.14); });
     },
+    victory: function () {
+      // a short triumphant fanfare
+      const melody = [
+        [523, 0.00], [659, 0.12], [784, 0.24], [1046, 0.36],
+        [988, 0.60], [1046, 0.72], [1318, 0.86], [1568, 1.04]
+      ];
+      melody.forEach(function (n) {
+        tone(n[0], 0.22, 'square', 0.075, n[1]);
+        tone(n[0] / 2, 0.22, 'triangle', 0.05, n[1]);
+      });
+      tone(2093, 0.5, 'triangle', 0.06, 1.28);
+      tone(1568, 0.5, 'square', 0.05, 1.28);
+    },
     levelUp: function () {
       [523, 659, 784, 1046, 1318].forEach(function (n, i) {
         tone(n, 0.12, 'triangle', 0.08, i * 0.10);
