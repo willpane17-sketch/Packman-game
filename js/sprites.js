@@ -175,207 +175,286 @@
   /* ------------------------------------------------------------------ */
   /* PIXEL JONESY GHOSTS                                                */
   /* ------------------------------------------------------------------ */
-  const G_W = 20;
-  const G_H = 20;
+  const G_W = 22;
+  const G_H = 22;
+  const G_CX = 11;
+  const G_CY = 11.6;
+  const G_R = 9.6;
 
-  const SKIN = '#f3c295';
-  const SKIN_D = '#c9915f';
-  const HAIR = '#d8c04a';        // blonde
-  const HAIR_D = '#8d8a33';      // the olive cast on top of Jonesy's hair
-  const TEE = '#e9edf3';         // the white t-shirt under the vest
-  const TEE_D = '#b7bec8';
-  const VEST = '#23232f';
-  const VEST_L = '#3a3a4c';
-  const GUN = '#1b1b1f';
-  const GUN_L = '#4d4d4d';
+  const TOM_RED = '#e0392c';
+  const TOM_RED_D = '#a8241b';
+  const TOM_RED_L = '#f4604f';
+  const TOM_SEED = '#ffb3a4';
+  const LEAF = '#4f9a2f';
+  const LEAF_D = '#2f6b1b';
+  const STALK = '#7a5a25';
+  const MOUTH = '#4a1410';
+  const TOOTH = '#fdf6ef';
+  const TONGUE = '#e2657a';
+
+  function mix(hex, other, k) {
+    const a = parseInt(hex.slice(1), 16), b = parseInt(other.slice(1), 16);
+    const r = Math.round((((a >> 16) & 255) * (1 - k)) + (((b >> 16) & 255) * k));
+    const g = Math.round((((a >> 8) & 255) * (1 - k)) + (((b >> 8) & 255) * k));
+    const bl = Math.round(((a & 255) * (1 - k)) + ((b & 255) * k));
+    return 'rgb(' + r + ',' + g + ',' + bl + ')';
+  }
 
   /**
-   * Pixel Jonesy on a ghost silhouette.
-   *   H/h olive + blonde hair   S/s skin        E eye white
-   *   W   white tee             V/v vest        G gun
-   *   C   this ghost's colour (so the four stay tellable apart)
+   * The three tones of a tomato in a given colour. Blinky's red is the
+   * Tomato Head as it comes; the other three are colour variants, which is
+   * what keeps the four tellable apart at a glance.
    */
-  const JONESY = [
-    '      HHHHHHHH      ',
-    '    HHHHHHHHHHHH    ',
-    '   hhHHHHHHHHHHhh   ',
-    '  hhhhHHHHHHHHhhhh  ',
-    '  hhSSSSSSSSSSSShh  ',
-    '  hSSEESSSSSEESSSh  ',
-    '  hSSEESSSSSEESSSh  ',
-    '  hSSSSSSSSSSSSSSh  ',
-    '   sSSSSSSSSSSSSs   ',
-    ' CWWWWWWWWWWWWWWWWC ',
-    ' CWWWVVVVVVVVVVWWWC ',
-    ' CWWVVVVVWWVVVVVWWC ',
-    ' CCWVVVVVVVVVVVVWCC ',
-    ' CCCCCCCCCCCCCCCCCC ',
-    ' CCCCCCCCCCCCCCCCCC ',
-    ' CCCCCCCCCCCCCCCCCC ',
-    ' CCCCCCCCCCCCCCCCCC ',
-    ' CCCCCCCCCCCCCCCCCC ',
-    ' CCCCCCCCCCCCCCCCCC ',
-    ' CCCCCCCCCCCCCCCCCC '
-  ];
-
-  const PALETTE = {
-    H: HAIR_D, h: HAIR, S: SKIN, s: SKIN_D, E: '#ffffff',
-    W: TEE, V: VEST, v: VEST_L, G: GUN, g: GUN_L
-  };
-
-  /** The silhouette, taken straight from the map so the two cannot drift. */
-  const SPANS = JONESY.map(function (row) {
-    const a = row.search(/[^ ]/);
-    if (a < 0) return null;
-    let b = row.length - 1;
-    while (b >= 0 && row[b] === ' ') b--;
-    return [a, b];
-  });
-
-  function darken(hex, k) {
-    const n = parseInt(hex.slice(1), 16);
-    const r = Math.round(((n >> 16) & 255) * k);
-    const g = Math.round(((n >> 8) & 255) * k);
-    const b = Math.round((n & 255) * k);
-    return 'rgb(' + r + ',' + g + ',' + b + ')';
+  function tomatoTones(mode, color) {
+    if (mode === 'fright') return { light: '#3b4cf0', base: '#2b3ce0', dark: '#12227a' };
+    if (mode === 'flash') return { light: '#ffffff', base: '#f4f4f4', dark: '#b8b8b8' };
+    return {
+      light: mix(color, '#ffffff', 0.3),
+      base: color,
+      dark: mix(color, '#000000', 0.42)
+    };
   }
 
-  function feetMask(ctx, frame) {
-    // carve the wavy bottom (two animation frames)
-    ctx.save();
-    ctx.globalCompositeOperation = 'destination-out';
-    const notches = frame === 0
-      ? [[0, 3], [8, 3], [16, 4]]
-      : [[4, 3], [12, 3], [0, 1]];
-    notches.forEach(function (n) {
-      ctx.fillRect(n[0], 18, n[1], 2);
-    });
-    ctx.fillRect(0, 19, 2, 1);
-    ctx.fillRect(18, 19, 2, 1);
-    ctx.restore();
-  }
-
-  function fillSilhouette(ctx, color) {
-    SPANS.forEach(function (sp, y) {
-      if (sp) px(ctx, sp[0], y, color, sp[1] - sp[0] + 1);
-    });
-  }
-
-  function paintJonesy(ctx, color, frame, mode) {
-    if (mode === 'fright' || mode === 'flash') {
-      fillSilhouette(ctx, mode === 'flash' ? '#f4f4f4' : '#2b3ce0');
-      feetMask(ctx, frame);
-      const fg = mode === 'flash' ? '#d02020' : '#ffffff';
-      px(ctx, 5, 6, fg, 2, 2);
-      px(ctx, 12, 6, fg, 2, 2);
-      for (let x = 4; x <= 15; x++) px(ctx, x, 12 + (x % 2 === 0 ? 0 : 1), fg);
-      return;
-    }
-
-    const dark = darken(color, 0.62);
+  /**
+   * Tomato Head: a round tomato, the same silhouette family as the burger,
+   * with the mascot's leafy crown, big eyes and wide grin.
+   */
+  function paintTomato(ctx, color, frame, mode) {
+    const t = tomatoTones(mode, color);
     for (let y = 0; y < G_H; y++) {
-      const row = JONESY[y];
       for (let x = 0; x < G_W; x++) {
-        const ch = row[x];
-        if (ch === ' ') continue;
-        px(ctx, x, y, ch === 'C' ? color : (ch === 'c' ? dark : PALETTE[ch]));
+        const dx = x + 0.5 - G_CX;
+        const dy = y + 0.5 - G_CY;
+        const d = Math.sqrt(dx * dx + dy * dy);
+        if (d > G_R) continue;
+        px(ctx, x, y, d > G_R - 1.2 ? t.dark : (d > G_R - 2.8 ? t.base : t.light));
       }
     }
 
-    // a little shaping the flat map cannot carry
-    px(ctx, 3, 3, HAIR_D, 2, 1);        // fringe shadow
-    px(ctx, 15, 3, HAIR_D, 2, 1);
-    px(ctx, 9, 4, HAIR_D, 2, 1);        // parting
-    px(ctx, 9, 9, TEE_D, 2, 1);         // collar shadow
-    // The rifle is carried on one side and pokes past the body, which is what
-    // makes it read as a weapon instead of a dark patch on the torso.
-    px(ctx, 11, 13, GUN, 8, 1);         // barrel out past the body
-    px(ctx, 10, 14, GUN, 7, 1);         // receiver
-    px(ctx, 11, 15, GUN, 2, 1);         // magazine
-    px(ctx, 14, 12, GUN_L, 1, 1);       // sight
-    px(ctx, 16, 13, GUN_L, 2, 1);       // light down the barrel
-    px(ctx, 9, 14, SKIN, 1, 1);         // hand on the grip
+    // a waxy highlight and a couple of seed flecks
+    px(ctx, 5, 5, t.light, 3, 1);
+    px(ctx, 4, 6, t.light, 2, 2);
+    if (mode !== 'fright' && mode !== 'flash') {
+      px(ctx, 16, 13, mix(color, '#ffffff', 0.55), 1, 1);
+      px(ctx, 5, 15, mix(color, '#ffffff', 0.55), 1, 1);
+    }
 
-    feetMask(ctx, frame);
+    // leafy crown and stalk
+    const leaf = mode === 'flash' ? '#c9c9c9' : LEAF;
+    const leafD = mode === 'flash' ? '#9a9a9a' : LEAF_D;
+    px(ctx, 10, 0, STALK, 2, 3);
+    px(ctx, 9, 0, STALK, 1, 1);
+    px(ctx, 6, 2, leaf, 4, 1);
+    px(ctx, 12, 2, leaf, 4, 1);
+    px(ctx, 3, 3, leaf, 7, 2);
+    px(ctx, 12, 3, leaf, 7, 2);
+    px(ctx, 5, 5, leaf, 4, 1);
+    px(ctx, 13, 5, leaf, 4, 1);
+    px(ctx, 3, 4, leafD, 3, 1);
+    px(ctx, 16, 4, leafD, 3, 1);
+    px(ctx, 8, 3, leafD, 2, 1);
+    px(ctx, 12, 3, leafD, 2, 1);
+
+    // collar below the head, in the same colour
+    px(ctx, 6, 19, t.dark, 10, 2);
+    px(ctx, 5, 20, t.dark, 12, 1);
+    px(ctx, 7, 19, t.base, 8, 1);
   }
 
-  function paintEyes(ctx, dir, mode) {
-    if (mode === 'fright' || mode === 'flash') return;
+  function paintFace(ctx, dir, mode) {
+    if (mode === 'fright' || mode === 'flash') {
+      const fg = mode === 'flash' ? '#d02020' : '#ffffff';
+      px(ctx, 6, 9, fg, 2, 2);
+      px(ctx, 14, 9, fg, 2, 2);
+      for (let x = 5; x <= 16; x++) px(ctx, x, 14 + (x % 2 === 0 ? 0 : 1), fg);
+      return;
+    }
     let ox = 0, oy = 0;
     if (dir === 'left') ox = -1;
     if (dir === 'right') ox = 1;
     if (dir === 'up') oy = -1;
     if (dir === 'down') oy = 1;
-    px(ctx, 5, 4, '#3b2a10', 2, 1);      // brows
-    px(ctx, 12, 4, '#3b2a10', 2, 1);
-    px(ctx, 5 + ox, 5 + oy, '#1b3fd8', 1, 1);
-    px(ctx, 12 + ox, 5 + oy, '#1b3fd8', 1, 1);
+
+    // eyes
+    px(ctx, 5, 8, '#2a0c08', 5, 5);
+    px(ctx, 12, 8, '#2a0c08', 5, 5);
+    px(ctx, 6, 9, '#ffffff', 4, 4);
+    px(ctx, 13, 9, '#ffffff', 4, 4);
+    px(ctx, 7 + ox, 10 + oy, '#141414', 2, 2);
+    px(ctx, 14 + ox, 10 + oy, '#141414', 2, 2);
+    px(ctx, 6, 9, '#ffffff', 1, 1);
+
+    // the big mascot grin
+    px(ctx, 5, 14, MOUTH, 12, 4);
+    px(ctx, 4, 15, MOUTH, 14, 2);
+    px(ctx, 6, 14, TOOTH, 10, 1);
+    px(ctx, 7, 17, TONGUE, 8, 1);
+    px(ctx, 8, 18, TONGUE, 6, 1);
   }
 
   const ghostCache = {};
 
   function ghostSprite(color, frame, mode, dir) {
-    const key = color + '|' + frame + '|' + mode + '|' + (mode === 'eaten' ? dir : '-');
+    const key = color + '|' + frame + '|' + mode + '|' + dir;
     if (ghostCache[key]) return ghostCache[key];
     const c = makeCanvas(G_W, G_H);
     if (mode === 'eaten') {
-      px(c.ctx, 4, 4, '#ffffff', 3, 3);
-      px(c.ctx, 11, 4, '#ffffff', 3, 3);
-      paintEyes(c.ctx, dir, 'normal');
-    } else {
-      paintJonesy(c.ctx, color, frame, mode);
-      paintEyes(c.ctx, dir, mode);
+      px(c.ctx, 5, 8, '#ffffff', 5, 5);
+      px(c.ctx, 12, 8, '#ffffff', 5, 5);
+      paintFace(c.ctx, dir, 'eyesonly');
+      // keep only the eyes: repaint them over a cleared canvas
+      const e = makeCanvas(G_W, G_H);
+      px(e.ctx, 5, 8, '#ffffff', 5, 5);
+      px(e.ctx, 12, 8, '#ffffff', 5, 5);
+      let ox = 0, oy = 0;
+      if (dir === 'left') ox = -1;
+      if (dir === 'right') ox = 1;
+      if (dir === 'up') oy = -1;
+      if (dir === 'down') oy = 1;
+      px(e.ctx, 6 + ox, 9 + oy, '#1b3fd8', 2, 2);
+      px(e.ctx, 13 + ox, 9 + oy, '#1b3fd8', 2, 2);
+      ghostCache[key] = e.canvas;
+      return e.canvas;
     }
+    paintTomato(c.ctx, color, frame, mode);
+    paintFace(c.ctx, dir, mode);
     ghostCache[key] = c.canvas;
     return c.canvas;
   }
 
   function drawGhost(ctx, cx, cy, size, color, frame, mode, dir) {
     const img = ghostSprite(color, frame, mode, dir);
-    const scale = size / 18;          // the body spans 18 of the 20 columns
+    const scale = size / 19;          // the head spans about 19 of 22 columns
     ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(img, Math.round(cx - 10 * scale), Math.round(cy - 10 * scale),
+    ctx.drawImage(img, Math.round(cx - G_CX * scale), Math.round(cy - G_CY * scale),
       G_W * scale, G_H * scale);
   }
 
   /* ------------------------------------------------------------------ */
   /* PICK-UPS                                                            */
   /* ------------------------------------------------------------------ */
-  const coin = makeCanvas(8, 8);
-  (function () {
-    const ctx = coin.ctx;
-    px(ctx, 2, 1, '#b8860b', 4, 1);
-    px(ctx, 1, 2, '#ffd447', 6, 4);
-    px(ctx, 2, 6, '#b8860b', 4, 1);
-    px(ctx, 2, 2, '#fff2ba', 1, 2);
-    px(ctx, 3, 3, '#a9761a', 2, 2);
-  })();
+  /**
+   * Mini shield (Small Shield Potion): a squat bottle of bright blue
+   * shield fluid with a steel cap.
+   */
+  const MINI_SHIELD = [
+    '   CC   ',
+    '  cCCc  ',
+    '  dBBd  ',
+    ' dBBBBd ',
+    ' BsBBBB ',
+    ' BsBBBB ',
+    ' dBBBBd ',
+    '  dddd  '
+  ];
 
-  const potion = makeCanvas(12, 12);
-  (function () {
-    const ctx = potion.ctx;
-    px(ctx, 4, 0, '#cfd6e6', 4, 1);   // cap
-    px(ctx, 5, 1, '#8d97ad', 2, 2);   // neck
-    px(ctx, 3, 3, '#7ad0ff', 6, 1);
-    px(ctx, 2, 4, '#2ea8f0', 8, 6);
-    px(ctx, 3, 10, '#1b74b8', 6, 1);
-    px(ctx, 3, 5, '#bdefff', 2, 2);   // shine
-  })();
+  /**
+   * Chug Jug: the big amber jug with a carry handle, steel nozzle and
+   * white label.
+   */
+  const CHUG_JUG = [
+    '    NN      ',
+    '   cNNc     ',
+    '   YYYY     ',
+    '  jYYYYj H  ',
+    ' jYYYYYYjHH ',
+    ' YYYYYYYYhH ',
+    ' YWWWWWWYhH ',
+    ' YWLLLLWYhH ',
+    ' YWWWWWWYhH ',
+    ' YYYYYYYYhH ',
+    ' YYYYYYYYHH ',
+    ' jYYYYYYj H ',
+    ' jYYYYYYj   ',
+    '  jjjjjj    '
+  ];
 
-  function drawCoin(ctx, cx, cy, size) {
-    const s = size / 6;
-    ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(coin.canvas, Math.round(cx - 4 * s), Math.round(cy - 4 * s), 8 * s, 8 * s);
+
+
+  const PICKUP_COLORS = {
+    C: '#dfe6ef', c: '#9aa6b6', N: '#c9d2dd',            // steel
+    B: '#4fc3ff', b: '#1b74b8', d: '#17608f', s: '#eafaff', // shield blue
+    Y: '#f0bb36', y: '#b3811a', j: '#8a5f10',             // jug amber
+    W: '#f2f5f8', L: '#2f7fd4',                           // label
+    H: '#c7a02a', h: '#9a7a18',                           // handle
+    w: '#ffffff', A: '#7ef0ff'
+  };
+
+  function bakePixels(map, palette, fallback) {
+    const h = map.length;
+    const w = map[0].length;
+    const c = makeCanvas(w, h);
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const ch = map[y][x];
+        if (ch === ' ') continue;
+        px(c.ctx, x, y, palette[ch] || fallback || '#ff00ff');
+      }
+    }
+    return c.canvas;
   }
 
+  const miniShieldImg = bakePixels(MINI_SHIELD, PICKUP_COLORS);
+  const chugJugImg = bakePixels(CHUG_JUG, PICKUP_COLORS);
+
+  /**
+   * The reboot card's circular arrow. Drawn rather than typed out, because a
+   * ring and its arrowhead do not survive being written as a character map.
+   */
+  const rebootImg = (function () {
+    const S = 16;
+    const c = makeCanvas(S, S);
+    const mid = S / 2;
+    function ring(radius, color, from, to) {
+      for (let a = from; a <= to; a += 2) {
+        const r = (a * Math.PI) / 180;
+        px(c.ctx, Math.round(mid + Math.cos(r) * radius - 0.5),
+          Math.round(mid + Math.sin(r) * radius - 0.5), color);
+      }
+    }
+    // dark rim, then the bright arc, leaving a gap at the top right
+    ring(5.7, '#0d3a57', 315, 640);
+    ring(4.3, '#0d3a57', 315, 640);
+    ring(5.0, '#7ef0ff', 318, 636);
+    ring(4.1, '#bff6ff', 340, 610);
+    // the arrowhead sits on the end of the arc, sweeping clockwise
+    px(c.ctx, 9, 0, '#0d3a57', 6, 1);
+    px(c.ctx, 9, 1, '#7ef0ff', 5, 1);
+    px(c.ctx, 10, 2, '#7ef0ff', 4, 1);
+    px(c.ctx, 11, 3, '#7ef0ff', 3, 1);
+    px(c.ctx, 12, 4, '#7ef0ff', 2, 1);
+    px(c.ctx, 13, 5, '#0d3a57', 1, 1);
+    px(c.ctx, 8, 1, '#0d3a57', 1, 1);
+    px(c.ctx, 9, 2, '#0d3a57', 1, 1);
+    return c.canvas;
+  })();
+
+  /** Mini shields stand in for the dots. */
+  function drawCoin(ctx, cx, cy, size) {
+    const s = (size / 6);
+    const w = 8 * s, h = 8 * s;
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(miniShieldImg, Math.round(cx - w / 2), Math.round(cy - h / 2), w, h);
+  }
+
+  /** Chug jugs stand in for the power pellets. */
   function drawPotion(ctx, cx, cy, size, pulse) {
-    const s = (size / 9) * (0.9 + 0.15 * pulse);
+    const s = (size / 13) * (0.92 + 0.12 * pulse);
+    const w = 12 * s, h = 14 * s;
     ctx.imageSmoothingEnabled = false;
     ctx.save();
-    ctx.shadowColor = 'rgba(60,180,255,0.9)';
-    ctx.shadowBlur = 8 * pulse + 4;
-    ctx.drawImage(potion.canvas, Math.round(cx - 6 * s), Math.round(cy - 6 * s), 12 * s, 12 * s);
+    ctx.shadowColor = 'rgba(255,205,80,0.9)';
+    ctx.shadowBlur = 9 * pulse + 4;
+    ctx.drawImage(chugJugImg, Math.round(cx - w / 2), Math.round(cy - h / 2), w, h);
     ctx.restore();
+  }
+
+  /** The reboot card's circular arrow, used for the lives counter. */
+  function drawReboot(ctx, cx, cy, size) {
+    const s = size / 14;
+    const w = 16 * s, h = 16 * s;
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(rebootImg, Math.round(cx - w / 2), Math.round(cy - h / 2), w, h);
   }
 
   /* ------------------------------------------------------------------ */
@@ -611,6 +690,7 @@
 
   global.Sprites = {
     drawVictoryBanner: drawVictoryBanner,
+    drawReboot: drawReboot,
     drawPac: drawPac,
     drawPacDeath: drawPacDeath,
     drawGhost: drawGhost,

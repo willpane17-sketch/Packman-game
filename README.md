@@ -6,14 +6,16 @@ new cast:
 | Classic          | This game                                              |
 | ---------------- | ------------------------------------------------------ |
 | Pac-Man          | a pixel **burger** (sesame bun, cheese, patty, olive)   |
-| The four ghosts  | four **pixel Jonesy** operators, colour-coded by squad  |
+| The four ghosts  | four **Tomato Heads**, round like the burger, one per colour |
 | The blue maze    | two Fortnite maps — **Tilted Towers** and **Dusty Divot** — each with its own layout and theme |
 | A black screen   | the **aerial map** behind the board: the town and its river, or the meteor crater and its blast streaks |
-| Dots / power pellets | gold **coins** / blue **shield potions**           |
+| Dots / power pellets | **mini shields** / **chug jugs**                    |
 | Cherries & fruit | **loot** — llama, fries, chug jug, shield              |
+| Spare lives      | **reboot cards**                                        |
 
-Every sprite and the whole map are drawn procedurally as pixel art on a canvas
-at load time, so there is **no build step**. The only image file in the project
+Every sprite is drawn procedurally as pixel art, and the aerial map behind the
+board is drawn at full resolution (the game stays pixelated; the world it sits
+in does not), all at load time, so there is **no build step**. The only image file in the project
 is the Victory Royale banner in `assets/` (Epic Games artwork, dropped in as-is
 for the win screen; the game falls back to a drawn banner if it is missing).
 Open `index.html` and play.
@@ -88,7 +90,7 @@ progress.
 The maze is the original 28 × 31 arcade layout (all 244 pick-ups), and the rules
 follow the arcade closely:
 
-- **Four distinct ghost personalities.** Blinky chases directly, Pinky aims four
+- **Four distinct Tomato Head personalities.** Blinky chases directly, Pinky aims four
   tiles ahead of the burger, Inky uses the Blinky-through-burger vector, and
   Clyde chases until he gets within eight tiles then bolts for his corner. The
   original's "look up = also look left" targeting quirk is reproduced.

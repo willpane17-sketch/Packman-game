@@ -870,9 +870,9 @@
       for (let x = 0; x < Maze.COLS; x++) {
         const t = game.grid[y][x];
         if (t === T.PELLET) {
-          Sprites.drawCoin(ctx, centerOf(x), centerOf(y), TILE * 0.44);
+          Sprites.drawCoin(ctx, centerOf(x), centerOf(y), TILE * 0.56);
         } else if (t === T.POWER) {
-          Sprites.drawPotion(ctx, centerOf(x), centerOf(y), TILE * 0.875, pulse);
+          Sprites.drawPotion(ctx, centerOf(x), centerOf(y), TILE * 1.05, pulse);
         }
       }
     }
@@ -1120,11 +1120,12 @@
   /* ------------------------------------------------------------------ */
   /* HUD                                                                 */
   /* ------------------------------------------------------------------ */
+  // spare lives are shown as reboot cards
   const lifeIconCache = (function () {
     const c = document.createElement('canvas');
-    c.width = 26; c.height = 30;
+    c.width = 30; c.height = 30;
     const cx = c.getContext('2d');
-    Sprites.drawPac(cx, 13, 15, 22, 'right', 0.8);
+    Sprites.drawReboot(cx, 15, 15, 28);
     return c.toDataURL();
   })();
 
