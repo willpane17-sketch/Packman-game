@@ -425,7 +425,171 @@
     ctx.drawImage(item.img, Math.round(cx - 8 * s), Math.round(cy - 8 * s), 16 * s, 16 * s);
   }
 
+  /* ------------------------------------------------------------------ */
+  /* VICTORY ROYALE BANNER                                               */
+  /* A slanted blue shard with torn ends, the gold #1 hanging off the    */
+  /* left, and the two words stacked and leaning to the right.           */
+  /* ------------------------------------------------------------------ */
+
+  /** Parallelogram path: the top edge sits `skew` further right than the bottom. */
+  function shard(ctx, x, y, w, h, skew) {
+    ctx.beginPath();
+    ctx.moveTo(x - w / 2 + skew, y - h / 2);
+    ctx.lineTo(x + w / 2 + skew, y - h / 2);
+    ctx.lineTo(x + w / 2 - skew, y + h / 2);
+    ctx.lineTo(x - w / 2 - skew, y + h / 2);
+    ctx.closePath();
+  }
+
+  function bannerFill(ctx, h) {
+    const g = ctx.createLinearGradient(0, -h / 2, 0, h / 2);
+    g.addColorStop(0, '#2b7fd4');
+    g.addColorStop(0.18, '#4fb4f2');
+    g.addColorStop(0.45, '#2f96e2');
+    g.addColorStop(0.75, '#1668bd');
+    g.addColorStop(1, '#0d4b95');
+    return g;
+  }
+
+  /**
+   * @param {number} width overall width of the banner in canvas pixels
+   * @param {string} font  font family string, e.g. '"Press Start 2P", monospace'
+   */
+  function drawVictoryBanner(ctx, cx, cy, width, font, shine) {
+    const h = width * 0.27;
+    const skew = h * 0.38;
+    const tilt = -0.075;
+
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(tilt);
+    ctx.imageSmoothingEnabled = true;
+
+    // ---- torn chips flying off each end ----
+    const chips = [
+      { x: -width * 0.575, y: h * 0.16, w: width * 0.045, h: h * 0.34, c: '#1c6fc4' },
+      { x: -width * 0.635, y: h * 0.30, w: width * 0.03, h: h * 0.22, c: '#14589f' },
+      { x: width * 0.570, y: -h * 0.20, w: width * 0.04, h: h * 0.30, c: '#2f96e2' },
+      { x: width * 0.630, y: -h * 0.32, w: width * 0.028, h: h * 0.20, c: '#1c6fc4' }
+    ];
+    chips.forEach(function (c) {
+      ctx.fillStyle = c.c;
+      shard(ctx, c.x, c.y, c.w, c.h, c.h * 0.38);
+      ctx.fill();
+    });
+
+    // ---- drop shadow ----
+    ctx.fillStyle = 'rgba(4, 22, 50, 0.55)';
+    shard(ctx, h * 0.10, h * 0.12, width, h, skew);
+    ctx.fill();
+
+    // ---- body ----
+    ctx.fillStyle = bannerFill(ctx, h);
+    shard(ctx, 0, 0, width, h, skew);
+    ctx.fill();
+
+    // clip everything decorative to the bander body
+    ctx.save();
+    shard(ctx, 0, 0, width, h, skew);
+    ctx.clip();
+
+    // light band across the top, dark band along the bottom
+    ctx.fillStyle = 'rgba(255,255,255,0.22)';
+    shard(ctx, 0, -h * 0.40, width, h * 0.16, skew);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(2, 30, 70, 0.38)';
+    shard(ctx, 0, h * 0.44, width, h * 0.14, skew);
+    ctx.fill();
+
+    // diagonal shine streaks, drifting
+    const drift = ((shine || 0) % 1) * width;
+    ctx.fillStyle = 'rgba(255,255,255,0.16)';
+    shard(ctx, -width * 0.15 + drift * 0.15, 0, width * 0.06, h, skew * 2.2);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.10)';
+    shard(ctx, width * 0.12 + drift * 0.15, 0, width * 0.10, h, skew * 2.2);
+    ctx.fill();
+    ctx.restore();
+
+    // ---- outline ----
+    ctx.strokeStyle = '#0a3c7d';
+    ctx.lineWidth = Math.max(2, h * 0.045);
+    ctx.lineJoin = 'miter';
+    shard(ctx, 0, 0, width, h, skew);
+    ctx.stroke();
+
+    // ---- lettering ----
+    // Sizes are measured rather than assumed: the page font may still be
+    // loading (or blocked), and the fallback has very different metrics.
+    const numBox = width * 0.30;        // space reserved for the #1
+    const textLeft = -width * 0.5 + numBox + skew * 0.5;
+    const textRight = width * 0.5 - skew * 0.9;
+    const textRoom = textRight - textLeft;
+
+    let size = h * 0.30;
+    ctx.font = 'bold ' + Math.round(size) + 'px ' + font;
+    const widest = Math.max(ctx.measureText('VICTORY').width, ctx.measureText('ROYALE').width);
+    if (widest > textRoom * 0.94) size *= (textRoom * 0.94) / widest;
+    size = Math.max(6, Math.round(size));
+    ctx.font = 'bold ' + size + 'px ' + font;
+
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+
+    function word(text, x, y) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.transform(1, 0, -0.16, 1, 0, 0);     // italic lean
+      ctx.lineJoin = 'round';
+      ctx.lineWidth = size * 0.55;
+      ctx.strokeStyle = '#0d2f66';
+      ctx.strokeText(text, 0, 0);
+      ctx.lineWidth = size * 0.22;
+      ctx.strokeStyle = '#7fc4ff';
+      ctx.strokeText(text, 0, 0);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText(text, 0, 0);
+      ctx.restore();
+    }
+
+    // VICTORY sits left, ROYALE is indented under it, like the real banner
+    const vWidth = ctx.measureText('VICTORY').width;
+    const rWidth = ctx.measureText('ROYALE').width;
+    word('VICTORY', textLeft, -h * 0.17);
+    word('ROYALE', textLeft + Math.max(size * 0.6, (vWidth - rWidth) * 0.9), h * 0.20);
+
+    // ---- gold #1, overlapping the left end ----
+    let numSize = h * 0.62;
+    ctx.font = 'bold ' + Math.round(numSize) + 'px ' + font;
+    const numWidth = ctx.measureText('#1').width;
+    if (numWidth > numBox * 0.92) numSize *= (numBox * 0.92) / numWidth;
+    numSize = Math.max(8, Math.round(numSize));
+    ctx.font = 'bold ' + numSize + 'px ' + font;
+
+    ctx.textAlign = 'center';
+    ctx.save();
+    ctx.translate(-width * 0.5 + numBox * 0.52, h * 0.08);
+    ctx.transform(1, 0, -0.16, 1, 0, 0);
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = numSize * 0.5;
+    ctx.strokeStyle = '#4a2c02';
+    ctx.strokeText('#1', 0, 0);
+    ctx.lineWidth = numSize * 0.2;
+    ctx.strokeStyle = '#a3700c';
+    ctx.strokeText('#1', 0, 0);
+    const gold = ctx.createLinearGradient(0, -numSize * 0.6, 0, numSize * 0.6);
+    gold.addColorStop(0, '#fff3b0');
+    gold.addColorStop(0.45, '#ffd447');
+    gold.addColorStop(1, '#e09a10');
+    ctx.fillStyle = gold;
+    ctx.fillText('#1', 0, 0);
+    ctx.restore();
+
+    ctx.restore();
+  }
+
   global.Sprites = {
+    drawVictoryBanner: drawVictoryBanner,
     drawPac: drawPac,
     drawPacDeath: drawPacDeath,
     drawGhost: drawGhost,

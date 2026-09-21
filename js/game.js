@@ -1007,35 +1007,23 @@
     ctx.fillRect(0, 0, W, H);
     drawConfetti();
 
-    const pop = Math.min(1, game.winTimer / 0.45);
-    const scale = 0.7 + 0.3 * pop;
+    const pop = Math.min(1, game.winTimer / 0.5);
+    const ease = 1 - Math.pow(1 - pop, 3);
 
+    // the banner slides in from the left and settles
     ctx.save();
-    ctx.translate(W / 2, H * 0.34);
-    ctx.scale(scale, scale);
-    ctx.textAlign = 'center';
-    ctx.font = 'bold ' + Math.round(34 * UNIT) + 'px "Press Start 2P", monospace';
-    ctx.lineWidth = 6 * UNIT;
-    ctx.strokeStyle = 'rgba(0,0,0,0.9)';
-    ctx.strokeText('#1', 0, 0);
-    ctx.fillStyle = '#ffd447';
-    ctx.fillText('#1', 0, 0);
+    ctx.globalAlpha = ease;
+    ctx.translate(-(1 - ease) * W * 0.5, 0);
+    Sprites.drawVictoryBanner(ctx, W / 2, H * 0.42, W * 0.74,
+      '"Press Start 2P", monospace', game.frame * 0.004);
     ctx.restore();
 
-    ctx.save();
-    ctx.globalAlpha = pop;
-    ctx.shadowColor = 'rgba(120, 220, 255, 0.85)';
-    ctx.shadowBlur = 18 + Math.sin(game.frame * 0.12) * 10;
-    bannerText('VICTORY', H * 0.45, '#ffffff', 26);
-    bannerText('ROYALE', H * 0.52, '#7ef0ff', 26);
-    ctx.restore();
-
-    const y = H * 0.62;
+    const y = H * 0.60;
     bannerText(diff().name + ' MODE CLEARED', y, diff().color, 11);
     bannerText('ALL ' + diff().levels + ' BOARDS', y + H * 0.05, '#ffffff', 10);
-    bannerText('SCORE ' + game.score, y + H * 0.10, '#ffd447', 14);
+    bannerText('SCORE ' + game.score, y + H * 0.105, '#ffd447', 14);
     if (game.wins > 1) {
-      bannerText('WIN #' + game.wins + ' ON THIS MODE', y + H * 0.145, 'rgba(255,255,255,0.7)', 8);
+      bannerText('WIN #' + game.wins + ' ON THIS MODE', y + H * 0.15, 'rgba(255,255,255,0.7)', 8);
     }
     bannerText('PRESS ENTER TO PLAY AGAIN', H * 0.86, '#ffd447', 10);
     if (game.difficulty !== 'extreme') {
@@ -1043,7 +1031,7 @@
     }
 
     // the champion burger, front and centre
-    Sprites.drawPac(ctx, W / 2, H * 0.19, 46 * UNIT, 'right',
+    Sprites.drawPac(ctx, W / 2, H * 0.17, 46 * UNIT, 'right',
       Math.abs(Math.sin(game.frame * 0.09)));
   }
 
