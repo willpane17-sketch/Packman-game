@@ -175,104 +175,126 @@
   /* ------------------------------------------------------------------ */
   /* PIXEL JONESY GHOSTS                                                */
   /* ------------------------------------------------------------------ */
-  const G_W = 16;
-  const G_H = 16;
+  const G_W = 20;
+  const G_H = 20;
 
   const SKIN = '#f3c295';
   const SKIN_D = '#c9915f';
-  const HAIR = '#d8c04a';
-  const HAIR_D = '#a68f22';
+  const HAIR = '#d8c04a';        // blonde
+  const HAIR_D = '#8d8a33';      // the olive cast on top of Jonesy's hair
+  const TEE = '#e9edf3';         // the white t-shirt under the vest
+  const TEE_D = '#b7bec8';
   const VEST = '#23232f';
   const VEST_L = '#3a3a4c';
-  const GUN = '#2a2a2a';
+  const GUN = '#1b1b1f';
   const GUN_L = '#4d4d4d';
 
-  // Ghost silhouette: rounded dome on top, straight sides, wavy skirt below.
-  const SPANS = [
-    [5, 10], [3, 12], [2, 13], [1, 14],
-    [1, 14], [1, 14], [1, 14], [1, 14],
-    [1, 14], [1, 14], [1, 14], [1, 14],
-    [1, 14], [1, 14], [1, 14], [1, 14]
+  /**
+   * Pixel Jonesy on a ghost silhouette.
+   *   H/h olive + blonde hair   S/s skin        E eye white
+   *   W   white tee             V/v vest        G gun
+   *   C   this ghost's colour (so the four stay tellable apart)
+   */
+  const JONESY = [
+    '      HHHHHHHH      ',
+    '    HHHHHHHHHHHH    ',
+    '   hhHHHHHHHHHHhh   ',
+    '  hhhhHHHHHHHHhhhh  ',
+    '  hhSSSSSSSSSSSShh  ',
+    '  hSSEESSSSSEESSSh  ',
+    '  hSSEESSSSSEESSSh  ',
+    '  hSSSSSSSSSSSSSSh  ',
+    '   sSSSSSSSSSSSSs   ',
+    ' CWWWWWWWWWWWWWWWWC ',
+    ' CWWWVVVVVVVVVVWWWC ',
+    ' CWWVVVVVWWVVVVVWWC ',
+    ' CCWVVVVVVVVVVVVWCC ',
+    ' CCCCCCCCCCCCCCCCCC ',
+    ' CCCCCCCCCCCCCCCCCC ',
+    ' CCCCCCCCCCCCCCCCCC ',
+    ' CCCCCCCCCCCCCCCCCC ',
+    ' CCCCCCCCCCCCCCCCCC ',
+    ' CCCCCCCCCCCCCCCCCC ',
+    ' CCCCCCCCCCCCCCCCCC '
   ];
 
-  /** Fill a row, clipped to the ghost silhouette so nothing spills outside. */
-  function row(ctx, y, x0, x1, color) {
-    const sp = SPANS[y];
-    if (!sp) return;
-    const a = Math.max(x0, sp[0]);
-    const b = Math.min(x1, sp[1]);
-    if (b < a) return;
-    px(ctx, a, y, color, b - a + 1);
+  const PALETTE = {
+    H: HAIR_D, h: HAIR, S: SKIN, s: SKIN_D, E: '#ffffff',
+    W: TEE, V: VEST, v: VEST_L, G: GUN, g: GUN_L
+  };
+
+  /** The silhouette, taken straight from the map so the two cannot drift. */
+  const SPANS = JONESY.map(function (row) {
+    const a = row.search(/[^ ]/);
+    if (a < 0) return null;
+    let b = row.length - 1;
+    while (b >= 0 && row[b] === ' ') b--;
+    return [a, b];
+  });
+
+  function darken(hex, k) {
+    const n = parseInt(hex.slice(1), 16);
+    const r = Math.round(((n >> 16) & 255) * k);
+    const g = Math.round(((n >> 8) & 255) * k);
+    const b = Math.round((n & 255) * k);
+    return 'rgb(' + r + ',' + g + ',' + b + ')';
   }
 
   function feetMask(ctx, frame) {
     // carve the wavy bottom (two animation frames)
     ctx.save();
     ctx.globalCompositeOperation = 'destination-out';
-    const notches = frame === 0 ? [[1, 2], [6, 2], [11, 2]] : [[3, 2], [8, 2], [13, 1]];
+    const notches = frame === 0
+      ? [[0, 3], [8, 3], [16, 4]]
+      : [[4, 3], [12, 3], [0, 1]];
     notches.forEach(function (n) {
-      ctx.fillRect(n[0], 14, n[1], 2);
+      ctx.fillRect(n[0], 18, n[1], 2);
     });
-    ctx.fillRect(0, 15, 1, 1);
-    ctx.fillRect(15, 15, 1, 1);
+    ctx.fillRect(0, 19, 2, 1);
+    ctx.fillRect(18, 19, 2, 1);
     ctx.restore();
   }
 
-  function paintJonesy(ctx, color, frame, mode) {
-    // ---- base body ----
-    for (let y = 0; y < G_H; y++) {
-      row(ctx, y, 0, 15, mode === 'fright' ? '#2b3ce0' : (mode === 'flash' ? '#f4f4f4' : color));
-    }
+  function fillSilhouette(ctx, color) {
+    SPANS.forEach(function (sp, y) {
+      if (sp) px(ctx, sp[0], y, color, sp[1] - sp[0] + 1);
+    });
+  }
 
+  function paintJonesy(ctx, color, frame, mode) {
     if (mode === 'fright' || mode === 'flash') {
+      fillSilhouette(ctx, mode === 'flash' ? '#f4f4f4' : '#2b3ce0');
       feetMask(ctx, frame);
       const fg = mode === 'flash' ? '#d02020' : '#ffffff';
-      px(ctx, 4, 5, fg, 2, 2);
-      px(ctx, 10, 5, fg, 2, 2);
-      for (let x = 3; x <= 12; x++) px(ctx, x, 10 + (x % 2 === 0 ? 0 : 1), fg);
+      px(ctx, 5, 6, fg, 2, 2);
+      px(ctx, 12, 6, fg, 2, 2);
+      for (let x = 4; x <= 15; x++) px(ctx, x, 12 + (x % 2 === 0 ? 0 : 1), fg);
       return;
     }
 
-    // ---- Jonesy: blonde hair, face, tactical vest, rifle ----
-    // hair, clipped to the dome so the head stays round
-    row(ctx, 0, 0, 15, HAIR);
-    row(ctx, 1, 0, 15, HAIR);
-    row(ctx, 2, 0, 15, HAIR);
-    row(ctx, 3, 0, 15, HAIR);
-    row(ctx, 1, 4, 6, HAIR_D);       // a little parting
-    row(ctx, 2, 3, 4, HAIR_D);
-    // face
-    row(ctx, 4, 3, 12, SKIN);
-    row(ctx, 5, 2, 13, SKIN);
-    row(ctx, 6, 2, 13, SKIN);
-    row(ctx, 7, 3, 12, SKIN);
-    // sideburns / fringe over the temples
-    px(ctx, 2, 4, HAIR, 1, 1);
-    px(ctx, 13, 4, HAIR, 1, 1);
-    px(ctx, 4, 4, HAIR_D, 2, 1);
-    px(ctx, 10, 4, HAIR_D, 2, 1);
-    // jaw + neck
-    row(ctx, 8, 4, 11, SKIN_D);
-    row(ctx, 9, 3, 12, VEST);
+    const dark = darken(color, 0.62);
+    for (let y = 0; y < G_H; y++) {
+      const row = JONESY[y];
+      for (let x = 0; x < G_W; x++) {
+        const ch = row[x];
+        if (ch === ' ') continue;
+        px(ctx, x, y, ch === 'C' ? color : (ch === 'c' ? dark : PALETTE[ch]));
+      }
+    }
 
-    // tactical vest with a coloured trim so each ghost stays identifiable
-    row(ctx, 10, 1, 14, VEST);
-    row(ctx, 11, 1, 14, VEST);
-    row(ctx, 12, 1, 14, VEST);
-    row(ctx, 13, 1, 14, VEST);
-    row(ctx, 10, 6, 9, VEST_L);      // zip / chest plate
-    row(ctx, 11, 7, 8, VEST_L);
-    row(ctx, 12, 7, 8, VEST_L);
-    px(ctx, 1, 10, color, 2, 4);     // shoulder trim
-    px(ctx, 13, 10, color, 2, 4);
-    px(ctx, 1, 9, color, 1, 1);
-    px(ctx, 14, 9, color, 1, 1);
-
-    // rifle held across the chest
-    row(ctx, 12, 2, 13, GUN);
-    px(ctx, 3, 13, GUN, 3, 1);
-    px(ctx, 11, 11, GUN_L, 3, 1);
-    px(ctx, 13, 12, GUN_L, 1, 1);
+    // a little shaping the flat map cannot carry
+    px(ctx, 3, 3, HAIR_D, 2, 1);        // fringe shadow
+    px(ctx, 15, 3, HAIR_D, 2, 1);
+    px(ctx, 9, 4, HAIR_D, 2, 1);        // parting
+    px(ctx, 9, 9, TEE_D, 2, 1);         // collar shadow
+    // The rifle is carried on one side and pokes past the body, which is what
+    // makes it read as a weapon instead of a dark patch on the torso.
+    px(ctx, 11, 13, GUN, 8, 1);         // barrel out past the body
+    px(ctx, 10, 14, GUN, 7, 1);         // receiver
+    px(ctx, 11, 15, GUN, 2, 1);         // magazine
+    px(ctx, 14, 12, GUN_L, 1, 1);       // sight
+    px(ctx, 16, 13, GUN_L, 2, 1);       // light down the barrel
+    px(ctx, 9, 14, SKIN, 1, 1);         // hand on the grip
 
     feetMask(ctx, frame);
   }
@@ -284,14 +306,10 @@
     if (dir === 'right') ox = 1;
     if (dir === 'up') oy = -1;
     if (dir === 'down') oy = 1;
-    // whites
-    px(ctx, 4, 5, '#ffffff', 3, 3);
-    px(ctx, 9, 5, '#ffffff', 3, 3);
-    px(ctx, 4, 4, '#3b2a10', 3, 1);   // brow line
-    px(ctx, 9, 4, '#3b2a10', 3, 1);
-    // pupils
-    px(ctx, 5 + ox, 6 + oy, '#1b3fd8', 1, 1);
-    px(ctx, 10 + ox, 6 + oy, '#1b3fd8', 1, 1);
+    px(ctx, 5, 4, '#3b2a10', 2, 1);      // brows
+    px(ctx, 12, 4, '#3b2a10', 2, 1);
+    px(ctx, 5 + ox, 5 + oy, '#1b3fd8', 1, 1);
+    px(ctx, 12 + ox, 5 + oy, '#1b3fd8', 1, 1);
   }
 
   const ghostCache = {};
@@ -301,6 +319,8 @@
     if (ghostCache[key]) return ghostCache[key];
     const c = makeCanvas(G_W, G_H);
     if (mode === 'eaten') {
+      px(c.ctx, 4, 4, '#ffffff', 3, 3);
+      px(c.ctx, 11, 4, '#ffffff', 3, 3);
       paintEyes(c.ctx, dir, 'normal');
     } else {
       paintJonesy(c.ctx, color, frame, mode);
@@ -312,9 +332,10 @@
 
   function drawGhost(ctx, cx, cy, size, color, frame, mode, dir) {
     const img = ghostSprite(color, frame, mode, dir);
-    const scale = size / 14;
+    const scale = size / 18;          // the body spans 18 of the 20 columns
     ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(img, Math.round(cx - 8 * scale), Math.round(cy - 8 * scale), G_W * scale, G_H * scale);
+    ctx.drawImage(img, Math.round(cx - 10 * scale), Math.round(cy - 10 * scale),
+      G_W * scale, G_H * scale);
   }
 
   /* ------------------------------------------------------------------ */
