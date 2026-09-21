@@ -961,6 +961,15 @@
   /* ------------------------------------------------------------------ */
   /* VICTORY                                                             */
   /* ------------------------------------------------------------------ */
+
+  // The Victory Royale banner artwork. Everything else in the game is drawn
+  // in code; if this file is missing the drawn banner stands in for it.
+  const victoryArt = new Image();
+  let victoryArtReady = false;
+  victoryArt.onload = function () { victoryArtReady = victoryArt.width > 0; };
+  victoryArt.onerror = function () { victoryArtReady = false; };
+  victoryArt.src = 'assets/victory-royale.png';
+
   const CONFETTI_COLORS = ['#ffd447', '#ff9ad5', '#3fd8e8', '#7ee07a', '#ffffff', '#f2a03c'];
 
   function spawnConfetti() {
@@ -1014,8 +1023,16 @@
     ctx.save();
     ctx.globalAlpha = ease;
     ctx.translate(-(1 - ease) * W * 0.5, 0);
-    Sprites.drawVictoryBanner(ctx, W / 2, H * 0.42, W * 0.74,
-      '"Press Start 2P", monospace', game.frame * 0.004);
+    if (victoryArtReady) {
+      const bw = W * 0.88;
+      const bh = bw * (victoryArt.height / victoryArt.width);
+      ctx.imageSmoothingEnabled = true;
+      ctx.drawImage(victoryArt, W / 2 - bw / 2, H * 0.40 - bh / 2, bw, bh);
+      ctx.imageSmoothingEnabled = false;
+    } else {
+      Sprites.drawVictoryBanner(ctx, W / 2, H * 0.42, W * 0.74,
+        '"Press Start 2P", monospace', game.frame * 0.004);
+    }
     ctx.restore();
 
     const y = H * 0.60;

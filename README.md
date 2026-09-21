@@ -12,8 +12,11 @@ new cast:
 | Dots / power pellets | gold **coins** / blue **shield potions**           |
 | Cherries & fruit | **loot** — llama, fries, chug jug, shield              |
 
-Everything is drawn procedurally as pixel art on a canvas at load time, so the
-game has **no image files and no build step**. Open `index.html` and play.
+Every sprite and the whole map are drawn procedurally as pixel art on a canvas
+at load time, so there is **no build step**. The only image file in the project
+is the Victory Royale banner in `assets/` (Epic Games artwork, dropped in as-is
+for the win screen; the game falls back to a drawn banner if it is missing).
+Open `index.html` and play.
 
 ## Play it
 
@@ -98,6 +101,7 @@ follow the arcade closely:
 ```
 index.html        page shell and HUD
 css/style.css     styling, responsive + touch layout
+assets/           the Victory Royale banner image
 js/backdrop.js    the aerial map of Tilted Towers behind the page
 js/layout.js      sizes the board to fill the window without clipping the HUD
 js/maze.js        the 28x31 tile map and tile helpers
