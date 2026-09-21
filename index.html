@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>Tilted Towers Burger Munch</title>
+<title>Burger Munch</title>
 <meta name="description" content="A Pac-Man style arcade game set in Tilted Towers, starring a pixel burger and four Jonesy ghosts.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -20,7 +20,7 @@
         <span class="value" id="score">000000</span>
       </div>
       <div class="stat title-block">
-        <h1>Tilted Towers <span>Burger Munch</span></h1>
+        <h1>Burger Munch <span id="map-title">Tilted Towers</span></h1>
       </div>
       <div class="stat right">
         <span class="label">High</span>
@@ -40,6 +40,11 @@
       <div class="stat">
         <span class="label">Storm</span>
         <span class="value">Lv <span id="level">1</span></span>
+      </div>
+      <div class="stat">
+        <span class="label">Map</span>
+        <button class="mode-btn map-btn" id="map-btn" type="button"
+                title="Click to change map (or press left and right)">Tilted Towers</button>
       </div>
       <div class="stat">
         <span class="label">Mode</span>

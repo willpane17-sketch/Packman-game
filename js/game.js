@@ -117,12 +117,23 @@
   const DIFFICULTY_ORDER = ['easy', 'hard', 'extreme'];
   const HIGH_KEY_PREFIX = 'tt-burger-high-';
 
-  function storedHigh(key) {
-    const own = Number(localStorage.getItem(HIGH_KEY_PREFIX + key) || 0);
-    // scores from before difficulty existed were played on the arcade balance
-    if (key === 'hard' && !own) return Number(localStorage.getItem('tt-burger-high') || 0);
-    return own;
+  /** Scores are tracked per map and per mode - they are different games. */
+  function highKey(mapKey, mode) {
+    return HIGH_KEY_PREFIX + mapKey + '-' + mode;
   }
+
+  function storedHigh(mapKey, mode) {
+    const own = Number(localStorage.getItem(highKey(mapKey, mode)) || 0);
+    if (own) return own;
+    // carry over scores set before maps, and before modes, existed
+    if (mapKey !== 'tilted') return 0;
+    const beforeMaps = Number(localStorage.getItem(HIGH_KEY_PREFIX + mode) || 0);
+    if (beforeMaps) return beforeMaps;
+    if (mode === 'hard') return Number(localStorage.getItem('tt-burger-high') || 0);
+    return 0;
+  }
+
+  function currentMap() { return Maze.get(game.mapKey); }
 
   function diff() { return DIFFICULTIES[game.difficulty]; }
 
@@ -139,6 +150,8 @@
     lives: document.getElementById('lives'),
     loot: document.getElementById('loot-row'),
     modeBtn: document.getElementById('mode-btn'),
+    mapBtn: document.getElementById('map-btn'),
+    mapTitle: document.getElementById('map-title'),
     mute: document.getElementById('mute-btn'),
     pause: document.getElementById('pause-btn'),
     full: document.getElementById('fullscreen-btn')
@@ -151,6 +164,7 @@
     state: STATE.TITLE,
     difficulty: DIFFICULTY_ORDER.indexOf(localStorage.getItem('tt-burger-mode')) >= 0
       ? localStorage.getItem('tt-burger-mode') : 'easy',
+    mapKey: Maze.get(localStorage.getItem('tt-burger-map') || 'tilted').key,
     grid: null,
     board: null,
     pelletsLeft: 0,
@@ -317,11 +331,11 @@
   }
 
   function loadLevel(fresh) {
-    const parsed = Maze.parse();
+    const parsed = Maze.parse(game.mapKey);
     game.grid = parsed.grid;
     game.pelletsTotal = parsed.pelletCount;
     game.pelletsLeft = parsed.pelletCount;
-    game.board = Renderer.buildBoard(game.grid, TILE);
+    game.board = Renderer.buildBoard(game.grid, TILE, currentMap().theme);
     computeHomeDistances();
     game.loot = null;
     game.lootTimer = 0;
@@ -366,11 +380,32 @@
     if (!DIFFICULTIES[key] || key === game.difficulty) return;
     game.difficulty = key;
     localStorage.setItem('tt-burger-mode', key);
-    game.high = storedHigh(key);
+    game.high = storedHigh(game.mapKey, key);
     updateHud();
     renderModeButtons();
     Sound.unlock();
     Sound.waka();
+  }
+
+  /** Switch map. Only meaningful outside a run, so callers check. */
+  function setMap(key) {
+    const map = Maze.get(key);
+    if (map.key === game.mapKey) return;
+    game.mapKey = map.key;
+    localStorage.setItem('tt-burger-map', map.key);
+    game.high = storedHigh(game.mapKey, game.difficulty);
+    if (window.Backdrop) Backdrop.setTheme(map.theme);
+    loadLevel(true);            // repaint the board in the new map's theme
+    updateHud();
+    renderModeButtons();
+    Sound.unlock();
+    Sound.waka();
+  }
+
+  function cycleMap(step) {
+    const keys = Maze.MAPS.map(function (m) { return m.key; });
+    const i = keys.indexOf(game.mapKey);
+    setMap(keys[(i + step + keys.length) % keys.length]);
   }
 
   function cycleDifficulty(step) {
@@ -419,10 +454,11 @@
     Sound.victory();
     if (game.score > game.high) {
       game.high = game.score;
-      localStorage.setItem(HIGH_KEY_PREFIX + diff().key, String(game.high));
+      localStorage.setItem(highKey(game.mapKey, diff().key), String(game.high));
     }
-    const wins = Number(localStorage.getItem('tt-burger-wins-' + diff().key) || 0) + 1;
-    localStorage.setItem('tt-burger-wins-' + diff().key, String(wins));
+    const winKey = 'tt-burger-wins-' + game.mapKey + '-' + diff().key;
+    const wins = Number(localStorage.getItem(winKey) || 0) + 1;
+    localStorage.setItem(winKey, String(wins));
     game.wins = wins;
     updateHud();
     renderModeButtons();
@@ -437,7 +473,7 @@
       renderModeButtons();
       if (game.score > game.high) {
         game.high = game.score;
-        localStorage.setItem(HIGH_KEY_PREFIX + diff().key, String(game.high));
+        localStorage.setItem(highKey(game.mapKey, diff().key), String(game.high));
         updateHud();
       }
     } else {
@@ -678,7 +714,7 @@
     }
     if (game.score > game.high) {
       game.high = game.score;
-      localStorage.setItem(HIGH_KEY_PREFIX + d.key, String(game.high));
+      localStorage.setItem(highKey(game.mapKey, d.key), String(game.high));
     }
     updateHud();
   }
@@ -941,15 +977,17 @@
     if (game.state === STATE.TITLE) {
       ctx.fillStyle = 'rgba(0,0,0,0.7)';
       ctx.fillRect(0, 0, W, H);
-      bannerText('TILTED TOWERS', H * 0.17, '#ffd447', 20);
-      bannerText('BURGER MUNCH', H * 0.23, '#ff9ad5', 20);
-      const demoY = H * 0.33;
+      // the map has its own name in the picker below, so the headline is
+      // just the game
+      bannerText('BURGER MUNCH', H * 0.135, '#ffd447', 20);
+      const demoY = H * 0.235;
       Sprites.drawPac(ctx, W / 2 - 60 * UNIT, demoY, 34 * UNIT, 'right', Math.abs(Math.sin(game.frame * 0.08)));
       Sprites.drawGhost(ctx, W / 2 + 10 * UNIT, demoY, 30 * UNIT, '#e8412f', Math.floor(game.frame / 8) % 2, 'normal', 'left');
       Sprites.drawGhost(ctx, W / 2 + 60 * UNIT, demoY, 30 * UNIT, '#3fd8e8', Math.floor(game.frame / 8) % 2, 'normal', 'left');
-      drawModeMenu(H * 0.45);
-      bannerText('ARROWS OR 1-3 TO CHOOSE', H * 0.80, '#ffffff', 9);
-      bannerText('PRESS ENTER TO DROP IN', H * 0.86, '#7ef0ff', 12);
+      drawMapPicker(H * 0.355);
+      drawModeMenu(H * 0.47);
+      bannerText('LEFT/RIGHT MAP   UP/DOWN OR 1-3 MODE', H * 0.83, '#ffffff', 8);
+      bannerText('PRESS ENTER TO DROP IN', H * 0.89, '#7ef0ff', 12);
     }
     if (game.paused && game.state === STATE.PLAY) {
       ctx.fillStyle = 'rgba(0,0,0,0.55)';
@@ -1052,9 +1090,18 @@
       Math.abs(Math.sin(game.frame * 0.09)));
   }
 
+  /** The map selector: arrows either side of the current map's name. */
+  function drawMapPicker(y) {
+    const map = currentMap();
+    bannerText('MAP', y - H * 0.035, '#ffffff', 9);
+    const blink = Math.floor(game.frame / 18) % 2 === 0;
+    bannerText((blink ? '< ' : '  ') + map.name + (blink ? ' >' : '  '), y, '#ffd447', 15);
+    bannerText(map.blurb, y + H * 0.032, 'rgba(255,255,255,0.72)', 7);
+  }
+
   /** The three difficulty rows, with the selected one called out. */
   function drawModeMenu(top) {
-    bannerText('SELECT MODE', top, '#ffffff', 10);
+    bannerText('MODE', top, '#ffffff', 9);
     DIFFICULTY_ORDER.forEach(function (key, i) {
       const d = DIFFICULTIES[key];
       const y = top + (0.055 + i * 0.055) * H;
@@ -1064,9 +1111,9 @@
         y, on ? d.color : 'rgba(255,255,255,0.35)', on ? 16 : 12);
     });
     const sel = diff();
-    bannerText(sel.blurb, top + 0.235 * H, sel.color, 8);
+    bannerText(sel.blurb, top + 0.215 * H, sel.color, 7);
     if (sel.scoreMul > 1) {
-      bannerText('SCORE x' + sel.scoreMul, top + 0.285 * H, '#ffd447', 9);
+      bannerText('SCORE x' + sel.scoreMul, top + 0.255 * H, '#ffd447', 8);
     }
   }
 
@@ -1108,16 +1155,26 @@
     }
   }
 
-  /** One compact button that cycles modes, live only between runs. */
+  /** Compact buttons that cycle the map and mode, live only between runs. */
   function renderModeButtons() {
-    if (!hud.modeBtn) return;
-    const d = diff();
-    hud.modeBtn.textContent = d.name;
-    hud.modeBtn.style.setProperty('--mode-color', d.color);
-    hud.modeBtn.disabled = !modeSelectable();
-    hud.modeBtn.title = modeSelectable()
-      ? 'Click to change difficulty (or press 1, 2, 3)'
-      : 'Finish this run to change difficulty';
+    const open = modeSelectable();
+    if (hud.modeBtn) {
+      const d = diff();
+      hud.modeBtn.textContent = d.name;
+      hud.modeBtn.style.setProperty('--mode-color', d.color);
+      hud.modeBtn.disabled = !open;
+      hud.modeBtn.title = open
+        ? 'Click to change difficulty (or press 1, 2, 3)'
+        : 'Finish this run to change difficulty';
+    }
+    if (hud.mapTitle) hud.mapTitle.textContent = currentMap().name;
+    if (hud.mapBtn) {
+      hud.mapBtn.textContent = currentMap().name;
+      hud.mapBtn.disabled = !open;
+      hud.mapBtn.title = open
+        ? 'Click to change map (or press left and right)'
+        : 'Finish this run to change map';
+    }
   }
 
   function renderLootRow() {
@@ -1209,11 +1266,14 @@
       setDifficulty(MODE_KEYS[e.code]);
       return;
     }
-    // on the menus the arrow keys pick a mode - there is nothing to steer
+    // on the menus the arrow keys choose the map and the mode - there is
+    // nothing to steer yet
     if (modeSelectable() && KEY_DIRS[e.code]) {
       e.preventDefault();
       const dir = KEY_DIRS[e.code];
-      if (dir === 'up' || dir === 'left') cycleDifficulty(-1);
+      if (dir === 'left') cycleMap(-1);
+      else if (dir === 'right') cycleMap(1);
+      else if (dir === 'up') cycleDifficulty(-1);
       else cycleDifficulty(1);
       return;
     }
@@ -1281,6 +1341,13 @@
     });
   }
 
+  if (hud.mapBtn) {
+    hud.mapBtn.addEventListener('click', function () {
+      if (!modeSelectable()) return;
+      cycleMap(1);
+    });
+  }
+
   // touch: swipe anywhere plus an on-screen pad
   let touchStart = null;
   canvas.addEventListener('touchstart', function (e) {
@@ -1316,7 +1383,8 @@
   /* ------------------------------------------------------------------ */
   /* BOOT                                                                */
   /* ------------------------------------------------------------------ */
-  game.high = storedHigh(game.difficulty);
+  game.high = storedHigh(game.mapKey, game.difficulty);
+  if (window.Backdrop) Backdrop.setTheme(currentMap().theme);
   loadLevel(true);
   updateHud();
   renderModeButtons();
@@ -1324,5 +1392,5 @@
   requestAnimationFrame(frame);
 
   // exposed for the smoke test / debugging in the console
-  window.__game = { game: game, pac: pac, ghosts: ghosts, startGame: startGame, STATE: STATE, TILE: TILE, updateHud: updateHud, setDifficulty: setDifficulty, DIFFICULTIES: DIFFICULTIES };
+  window.__game = { game: game, pac: pac, ghosts: ghosts, startGame: startGame, STATE: STATE, TILE: TILE, updateHud: updateHud, setDifficulty: setDifficulty, setMap: setMap, DIFFICULTIES: DIFFICULTIES };
 })();

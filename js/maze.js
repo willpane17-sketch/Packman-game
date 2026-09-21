@@ -1,62 +1,98 @@
 /* ==========================================================================
-   maze.js - Tilted Towers maze layout + tile helpers
-   Classic 28 x 31 arcade layout, re-skinned as a city block.
+   maze.js - the playable maps and tile helpers.
+   Every map is the same 28 x 31 arcade grid so the ghost logic, the tunnel
+   and the burger's start tile line up; what changes is the layout around
+   that skeleton and the theme the renderer paints it with.
    Legend:
-     #  wall (building)
-     .  pellet (gold coin)
-     o  power pellet (shield potion)
-     -  ghost house door
-     ' ' empty floor
+     #  wall        .  pellet      o  power pellet
+     -  ghost house door           ' ' empty floor
    ========================================================================== */
 (function (global) {
   'use strict';
 
-  const MAZE_STRING = [
-    '############################',
-    '#............##............#',
-    '#.####.#####.##.#####.####.#',
-    '#o####.#####.##.#####.####o#',
-    '#.####.#####.##.#####.####.#',
-    '#..........................#',
-    '#.####.##.########.##.####.#',
-    '#.####.##.########.##.####.#',
-    '#......##....##....##......#',
-    '######.##### ## #####.######',
-    '######.##### ## #####.######',
-    '######.##          ##.######',
-    '######.## ###--### ##.######',
-    '######.## #      # ##.######',
-    '      .   #      #   .      ',
-    '######.## #      # ##.######',
-    '######.## ######## ##.######',
-    '######.##          ##.######',
-    '######.## ######## ##.######',
-    '######.## ######## ##.######',
-    '#............##............#',
-    '#.####.#####.##.#####.####.#',
-    '#.####.#####.##.#####.####.#',
-    '#o..##.......  .......##..o#',
-    '###.##.##.########.##.##.###',
-    '###.##.##.########.##.##.###',
-    '#......##....##....##......#',
-    '#.##########.##.##########.#',
-    '#.##########.##.##########.#',
-    '#..........................#',
-    '############################'
-  ];
-
   const COLS = 28;
   const ROWS = 31;
 
-  // Sanity-check the layout at load time so a typo can never ship silently.
-  if (MAZE_STRING.length !== ROWS) {
-    throw new Error('Maze must have ' + ROWS + ' rows, found ' + MAZE_STRING.length);
-  }
-  MAZE_STRING.forEach(function (row, i) {
-    if (row.length !== COLS) {
-      throw new Error('Maze row ' + i + ' must be ' + COLS + ' wide, found ' + row.length);
+  const MAPS = [
+    {
+      key: 'tilted',
+      name: 'TILTED TOWERS',
+      theme: 'city',
+      blurb: 'CONCRETE TOWERS, ROADS AND THE RIVER',
+      rows: [
+      '############################',
+      '#............##............#',
+      '#.####.#####.##.#####.####.#',
+      '#o####.#####.##.#####.####o#',
+      '#.####.#####.##.#####.####.#',
+      '#..........................#',
+      '#.####.##.########.##.####.#',
+      '#.####.##.########.##.####.#',
+      '#......##....##....##......#',
+      '######.##### ## #####.######',
+      '######.##### ## #####.######',
+      '######.##          ##.######',
+      '######.## ###--### ##.######',
+      '######.## #      # ##.######',
+      '      .   #      #   .      ',
+      '######.## #      # ##.######',
+      '######.## ######## ##.######',
+      '######.##          ##.######',
+      '######.## ######## ##.######',
+      '######.## ######## ##.######',
+      '#............##............#',
+      '#.####.#####.##.#####.####.#',
+      '#.####.#####.##.#####.####.#',
+      '#o..##.......  .......##..o#',
+      '###.##.##.########.##.##.###',
+      '###.##.##.########.##.##.###',
+      '#......##....##....##......#',
+      '#.##########.##.##########.#',
+      '#.##########.##.##########.#',
+      '#..........................#',
+      '############################'
+      ]
+    },
+    {
+      key: 'divot',
+      name: 'DUSTY DIVOT',
+      theme: 'crater',
+      blurb: 'THE METEOR CRATER AND ITS RESEARCH SITE',
+      rows: [
+      '############################',
+      '#............##............#',
+      '#.###.####.#.##.#.####.###.#',
+      '#o###.####.#.##.#.####.###o#',
+      '#.###.####.#.##.#.####.###.#',
+      '#..........................#',
+      '#.##.##.##.#.##.#.##.##.##.#',
+      '#.##.##.##.#.##.#.##.##.##.#',
+      '#..........#.##.#..........#',
+      '###.##.##### ## #####.##.###',
+      '###.##.##### ## #####.##.###',
+      '###.##.##          ##.##.###',
+      '###.##.## ###--### ##.##.###',
+      '###.##.## #      # ##.##.###',
+      '      .   #      #   .      ',
+      '###.##.## #      # ##.##.###',
+      '###.##.## ######## ##.##.###',
+      '###.##.##          ##.##.###',
+      '###.##.## ######## ##.##.###',
+      '###.##.## ######## ##.##.###',
+      '#..........######..........#',
+      '#.##.##.##.######.##.##.##.#',
+      '#.##.##.##.######.##.##.##.#',
+      '#o..........    ..........o#',
+      '#.##.##.##.######.##.##.##.#',
+      '#.##.##.##.######.##.##.##.#',
+      '#..........................#',
+      '#.###.####.#.##.#.####.###.#',
+      '#.###.####.#.##.#.####.###.#',
+      '#............##............#',
+      '############################'
+      ]
     }
-  });
+  ];
 
   const TILE = {
     WALL: 0,
@@ -84,13 +120,33 @@
 
   const TUNNEL_ROW = 14;
 
-  function parse() {
+  // Sanity-check every layout at load time so a typo can never ship silently.
+  MAPS.forEach(function (map) {
+    if (map.rows.length !== ROWS) {
+      throw new Error(map.key + ' must have ' + ROWS + ' rows, found ' + map.rows.length);
+    }
+    map.rows.forEach(function (row, i) {
+      if (row.length !== COLS) {
+        throw new Error(map.key + ' row ' + i + ' must be ' + COLS + ' wide, found ' + row.length);
+      }
+    });
+  });
+
+  function get(key) {
+    for (let i = 0; i < MAPS.length; i++) {
+      if (MAPS[i].key === key) return MAPS[i];
+    }
+    return MAPS[0];
+  }
+
+  function parse(key) {
+    const map = get(key);
     const grid = [];
     let pelletCount = 0;
     for (let y = 0; y < ROWS; y++) {
       const row = [];
       for (let x = 0; x < COLS; x++) {
-        const ch = MAZE_STRING[y][x];
+        const ch = map.rows[y][x];
         let t;
         switch (ch) {
           case '#': t = TILE.WALL; break;
@@ -103,7 +159,7 @@
       }
       grid.push(row);
     }
-    return { grid: grid, pelletCount: pelletCount };
+    return { grid: grid, pelletCount: pelletCount, map: map };
   }
 
   global.Maze = {
@@ -113,7 +169,8 @@
     HOUSE: HOUSE,
     TUNNEL_ROW: TUNNEL_ROW,
     NO_UP_TILES: NO_UP_TILES,
-    parse: parse,
-    raw: MAZE_STRING
+    MAPS: MAPS,
+    get: get,
+    parse: parse
   };
 })(window);

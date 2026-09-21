@@ -265,3 +265,8 @@ kbd {
   box-shadow: none;
   transform: none;
 }
+
+.map-btn {
+  --mode-color: #8fd0ff;
+  background: linear-gradient(180deg, #ffffff, var(--mode-color));
+}

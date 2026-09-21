@@ -101,7 +101,7 @@
     }
   }
 
-  function paint(canvas) {
+  function paintCity(canvas) {
     const w = canvas.width;
     const h = canvas.height;
     const ctx = canvas.getContext('2d');
@@ -191,33 +191,200 @@
     ctx.fillRect(0, 0, w, h);
   }
 
+
+  /**
+   * Dusty Divot from the air: green terrain torn open by the meteor, with
+   * the dirt thrown outwards in streaks and the research site in the middle.
+   */
+  function paintCrater(canvas) {
+    const w = canvas.width;
+    const h = canvas.height;
+    const ctx = canvas.getContext('2d');
+    const rand = rng(77013);
+    const cx = w / 2;
+    const cy = h / 2;
+    const R = Math.max(w, h) * 0.62;          // crater radius, wider than the board
+
+    // ---- surrounding terrain ----
+    const base = ctx.createLinearGradient(0, 0, w * 0.4, h);
+    base.addColorStop(0, '#4f8436');
+    base.addColorStop(0.5, '#43742e');
+    base.addColorStop(1, '#376026');
+    ctx.fillStyle = base;
+    ctx.fillRect(0, 0, w, h);
+    for (let i = 0; i < 70; i++) {
+      blob(ctx, rand() * w, rand() * h, 50 + rand() * 150,
+        GRASS[Math.floor(rand() * GRASS.length)], rand);
+    }
+
+    // a road skirting the crater, as in the map
+    road(ctx, [[-30, h * 0.12], [w * 0.3, h * 0.07], [w * 0.62, h * 0.12], [w + 30, h * 0.06]],
+      Math.max(10, w * 0.018));
+
+    /** The rim is ragged, not a circle: the same wobble at every radius. */
+    function rimAt(a) {
+      return R * (1 + 0.10 * Math.sin(a * 7 + 0.6) + 0.07 * Math.sin(a * 3 - 1.1)
+        + 0.045 * Math.sin(a * 13 + 2.2));
+    }
+
+    function craterPath(scale) {
+      ctx.beginPath();
+      for (let i = 0; i <= 160; i++) {
+        const a = (i / 160) * Math.PI * 2;
+        const r = rimAt(a) * scale;
+        const x = cx + Math.cos(a) * r;
+        const y = cy + Math.sin(a) * r * 0.92;
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+    }
+
+    // ---- ejecta: dirt flung past the rim ----
+    ctx.save();
+    for (let i = 0; i < 150; i++) {
+      const a = rand() * Math.PI * 2;
+      const reach = rimAt(a) * (1 + rand() * 0.28);
+      const x = cx + Math.cos(a) * reach;
+      const y = cy + Math.sin(a) * reach * 0.92;
+      ctx.globalAlpha = 0.25 + rand() * 0.45;
+      blob(ctx, x, y, 8 + rand() * 30, rand() > 0.5 ? '#5a3c26' : '#6d4a2e', rand);
+    }
+    ctx.restore();
+
+    // ---- the crater itself ----
+    ctx.save();
+    craterPath(1);
+    ctx.clip();
+
+    const bowl = ctx.createRadialGradient(cx, cy, R * 0.08, cx, cy, R);
+    bowl.addColorStop(0, '#8a6540');
+    bowl.addColorStop(0.45, '#6b4a2e');
+    bowl.addColorStop(0.85, '#4b331f');
+    bowl.addColorStop(1, '#35251722');
+    ctx.fillStyle = bowl;
+    ctx.fillRect(0, 0, w, h);
+
+    // radial streaks scoured out from the impact point
+    for (let i = 0; i < 150; i++) {
+      const a = (i / 150) * Math.PI * 2 + rand() * 0.02;
+      const inner = R * (0.06 + rand() * 0.12);
+      const outer = rimAt(a) * (0.7 + rand() * 0.34);
+      ctx.strokeStyle = rand() > 0.5
+        ? 'rgba(38,24,14,' + (0.18 + rand() * 0.3) + ')'
+        : 'rgba(190,150,104,' + (0.06 + rand() * 0.14) + ')';
+      ctx.lineWidth = 2 + rand() * 9;
+      ctx.beginPath();
+      ctx.moveTo(cx + Math.cos(a) * inner, cy + Math.sin(a) * inner * 0.92);
+      ctx.lineTo(cx + Math.cos(a) * outer, cy + Math.sin(a) * outer * 0.92);
+      ctx.stroke();
+    }
+
+    // terraced steps down the crater wall
+    ctx.strokeStyle = 'rgba(255,214,160,0.13)';
+    ctx.lineWidth = 3;
+    [0.86, 0.68, 0.5].forEach(function (k) {
+      craterPath(k);
+      ctx.stroke();
+    });
+
+    // rubble on the crater floor
+    for (let i = 0; i < 120; i++) {
+      const a = rand() * Math.PI * 2;
+      const r = rand() * R * 0.95;
+      const x = cx + Math.cos(a) * r;
+      const y = cy + Math.sin(a) * r * 0.92;
+      ctx.fillStyle = rand() > 0.6 ? 'rgba(20,12,6,0.4)' : 'rgba(206,170,120,0.22)';
+      ctx.fillRect(x, y, 2 + rand() * 5, 2 + rand() * 4);
+    }
+    ctx.restore();
+
+    // ---- rim shadow, so the bowl reads as a hole ----
+    ctx.save();
+    craterPath(1);
+    ctx.clip();
+    const lip = ctx.createRadialGradient(cx, cy, R * 0.72, cx, cy, R * 1.02);
+    lip.addColorStop(0, 'rgba(0,0,0,0)');
+    lip.addColorStop(1, 'rgba(0,0,0,0.55)');
+    ctx.fillStyle = lip;
+    ctx.fillRect(0, 0, w, h);
+    ctx.restore();
+
+    // ---- the research site in the middle ----
+    const site = Math.min(w, h) * 0.12;
+    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    ctx.fillRect(cx - site * 1.05, cy - site * 0.75, site * 2.1, site * 1.5);
+    ctx.fillStyle = '#b9bdc2';
+    ctx.fillRect(cx - site, cy - site * 0.7, site * 2, site * 1.4);
+    ctx.strokeStyle = '#7f858c';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(cx - site, cy - site * 0.7, site * 2, site * 1.4);
+    for (let i = 0; i < 7; i++) {
+      const bw = site * (0.22 + rand() * 0.3);
+      const bh = site * (0.2 + rand() * 0.28);
+      const bx = cx - site * 0.9 + rand() * (site * 1.8 - bw);
+      const by = cy - site * 0.6 + rand() * (site * 1.2 - bh);
+      outbuilding(ctx, bx, by, bw, bh, rand);
+    }
+
+    // trees ringing the blast, thinning out as they near it
+    for (let i = 0; i < 220; i++) {
+      const x = rand() * w;
+      const y = rand() * h;
+      const a = Math.atan2((y - cy) / 0.92, x - cx);
+      const d = Math.hypot(x - cx, (y - cy) / 0.92);
+      if (d < rimAt(a) * 1.12) continue;
+      tree(ctx, x, y, 6 + rand() * 9, rand);
+    }
+
+    const vig = ctx.createRadialGradient(cx, cy, Math.min(w, h) * 0.3, cx, cy, Math.max(w, h) * 0.8);
+    vig.addColorStop(0, 'rgba(0,0,0,0)');
+    vig.addColorStop(1, 'rgba(0,0,0,0.5)');
+    ctx.fillStyle = vig;
+    ctx.fillRect(0, 0, w, h);
+  }
+
+  function paint(canvas, theme) {
+    if (theme === 'crater') paintCrater(canvas);
+    else paintCity(canvas);
+  }
+
+  let currentTheme = 'city';
+
   function mount() {
     const canvas = document.getElementById('backdrop');
     if (!canvas) return;
     let raf = null;
 
-    function resize() {
+    function resize(force) {
       const scale = Math.min(global.devicePixelRatio || 1, 1.5);
       const w = Math.ceil(global.innerWidth * scale);
       const h = Math.ceil(global.innerHeight * scale);
-      if (canvas.width === w && canvas.height === h) return;
+      if (!force && canvas.width === w && canvas.height === h) return;
       canvas.width = w;
       canvas.height = h;
-      paint(canvas);
+      paint(canvas, currentTheme);
     }
+
+    /** Called when the player picks a different map. */
+    Backdrop.setTheme = function (theme) {
+      if (theme === currentTheme) return;
+      currentTheme = theme;
+      resize(true);
+    };
 
     global.addEventListener('resize', function () {
       if (raf) cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(resize);
+      raf = requestAnimationFrame(function () { resize(false); });
     });
     resize();
   }
+
+  const Backdrop = { paint: paint, setTheme: function () {} };
+  global.Backdrop = Backdrop;
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', mount);
   } else {
     mount();
   }
-
-  global.Backdrop = { paint: paint };
 })(window);

@@ -1,4 +1,4 @@
-# Tilted Towers Burger Munch
+# Burger Munch
 
 A complete, playable re-creation of the classic arcade maze game — rebuilt with a
 new cast:
@@ -7,8 +7,8 @@ new cast:
 | ---------------- | ------------------------------------------------------ |
 | Pac-Man          | a pixel **burger** (sesame bun, cheese, patty, olive)   |
 | The four ghosts  | four **pixel Jonesy** operators, colour-coded by squad  |
-| The blue maze    | the **Tilted Towers** city block — concrete towers, asphalt roads, grass and the river on the east side |
-| A black screen   | the **Tilted Towers aerial map** behind the board — terrain, the river, the roads into town, tree cover and outskirts buildings |
+| The blue maze    | two Fortnite maps — **Tilted Towers** and **Dusty Divot** — each with its own layout and theme |
+| A black screen   | the **aerial map** behind the board: the town and its river, or the meteor crater and its blast streaks |
 | Dots / power pellets | gold **coins** / blue **shield potions**           |
 | Cherries & fruit | **loot** — llama, fries, chug jug, shield              |
 
@@ -35,6 +35,26 @@ python3 -m http.server 8000
 | F | Full screen |
 | 1 / 2 / 3 | Easy / Hard / Extreme (on the menus) |
 | Swipe or on-screen D-pad | Move (touch devices) |
+
+## Maps
+
+Pick a map on the title screen with the left and right arrows, or the Map
+button in the HUD. Both are the same 28 x 31 arcade grid - so the ghost house,
+the tunnel and the burger's start tile line up - but the layout and the theme
+change, and each map keeps its own high scores.
+
+| | Tilted Towers | Dusty Divot |
+| --- | --- | --- |
+| Pick-ups | 244 | 298 |
+| Walls | concrete towers with lit windows | banks of earth thrown up by the impact |
+| Floor | asphalt with lane markings | scorched dirt, blast streaks radiating from the centre |
+| The middle | the ghost house | the research site: prefab buildings and concrete pads |
+| Around it | grass and the river to the east | the crater bowl, ejecta past the rim, trees beyond |
+
+Every layout is validated at build time: 28 x 31, every pick-up reachable,
+exactly four power pellets, no dead-end corridors, no 2x2 open blocks, and the
+tiles the engine hardcodes (the ghost door, the tunnel mouths, the burger's
+start) all where they should be.
 
 ## Difficulty
 
