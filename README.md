@@ -6,11 +6,11 @@ new cast:
 | Classic          | This game                                              |
 | ---------------- | ------------------------------------------------------ |
 | Pac-Man          | a pixel **burger** (sesame bun, cheese, patty, olive)   |
-| The four ghosts  | four **Tomato Heads**, round like the burger, one per colour |
+| The four ghosts  | **Tomato Heads** in Tilted Towers, **Ravens** in Dusty Divot — each map has its own skin |
 | The blue maze    | two Fortnite maps — **Tilted Towers** and **Dusty Divot** — each with its own layout and theme |
 | A black screen   | the **aerial map** behind the board: the town and its river, or the meteor crater and its blast streaks |
 | Dots / power pellets | **mini shields** / **chug jugs**                    |
-| Cherries & fruit | **loot** — llama, fries, chug jug, shield              |
+| Cherries & fruit | the **Loot Llama**, worth more the further you get     |
 | Spare lives      | **reboot cards**                                        |
 
 Every sprite is drawn procedurally as pixel art, and the aerial map behind the
@@ -51,6 +51,7 @@ change, and each map keeps its own high scores.
 | Walls | concrete towers with lit windows | banks of earth thrown up by the impact |
 | Floor | asphalt with lane markings | scorched dirt, blast streaks radiating from the centre |
 | The middle | the ghost house | the research site: prefab buildings and concrete pads |
+| Ghost skin | Tomato Head | Raven |
 | Around it | grass and the river to the east | the crater bowl, ejecta past the rim, trees beyond |
 
 Every layout is validated at build time: 28 x 31, every pick-up reachable,

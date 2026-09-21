@@ -195,6 +195,8 @@
     extraAwarded: false,
     winTimer: 0,
     wins: 0,
+    eliminations: 0,
+    fireworks: [],
     confetti: [],
     frame: 0
   };
@@ -423,6 +425,7 @@
     game.score = 0;
     game.level = 1;
     game.lives = diff().lives;
+    game.eliminations = 0;
     game.extraAwarded = false;
     game.popups = [];
     loadLevel(true);
@@ -450,7 +453,11 @@
   function winGame() {
     game.state = STATE.WIN;
     game.winTimer = 0;
+    game.fireworks = [];
     spawnConfetti();
+    for (let i = 0; i < 3; i++) {
+      spawnFirework(W * (0.2 + Math.random() * 0.6), H * (0.15 + Math.random() * 0.35));
+    }
     Sound.victory();
     if (game.score > game.high) {
       game.high = game.score;
@@ -847,6 +854,7 @@
 
       if (g.frightened) {
         game.ghostsEaten++;
+        game.eliminations++;
         const points = 200 * Math.pow(2, Math.min(game.ghostsEaten, 4) - 1);
         addScore(points);
         popup(g.x, g.y, points, '#7ef0ff');
@@ -870,7 +878,7 @@
       for (let x = 0; x < Maze.COLS; x++) {
         const t = game.grid[y][x];
         if (t === T.PELLET) {
-          Sprites.drawCoin(ctx, centerOf(x), centerOf(y), TILE * 0.56);
+          Sprites.drawCoin(ctx, centerOf(x), centerOf(y), TILE * 0.46);
         } else if (t === T.POWER) {
           Sprites.drawPotion(ctx, centerOf(x), centerOf(y), TILE * 1.05, pulse);
         }
@@ -886,7 +894,8 @@
         const flashing = game.frightTimer < 2 && Math.floor(game.frightTimer * 6) % 2 === 0;
         mode = flashing ? 'flash' : 'fright';
       }
-      Sprites.drawGhost(ctx, g.x, g.y, TILE * 1.15, g.color, g.frame, mode, g.dir);
+      Sprites.drawGhost(ctx, g.x, g.y, TILE * 1.15, g.color, g.frame, mode, g.dir,
+        currentMap().skin);
     });
   }
 
@@ -982,8 +991,10 @@
       bannerText('BURGER MUNCH', H * 0.135, '#ffd447', 20);
       const demoY = H * 0.235;
       Sprites.drawPac(ctx, W / 2 - 60 * UNIT, demoY, 34 * UNIT, 'right', Math.abs(Math.sin(game.frame * 0.08)));
-      Sprites.drawGhost(ctx, W / 2 + 10 * UNIT, demoY, 30 * UNIT, '#e8412f', Math.floor(game.frame / 8) % 2, 'normal', 'left');
-      Sprites.drawGhost(ctx, W / 2 + 60 * UNIT, demoY, 30 * UNIT, '#3fd8e8', Math.floor(game.frame / 8) % 2, 'normal', 'left');
+      Sprites.drawGhost(ctx, W / 2 + 10 * UNIT, demoY, 30 * UNIT, '#e8412f',
+        Math.floor(game.frame / 8) % 2, 'normal', 'left', currentMap().skin);
+      Sprites.drawGhost(ctx, W / 2 + 60 * UNIT, demoY, 30 * UNIT, '#3fd8e8',
+        Math.floor(game.frame / 8) % 2, 'normal', 'left', currentMap().skin);
       drawMapPicker(H * 0.355);
       drawModeMenu(H * 0.47);
       bannerText('LEFT/RIGHT MAP   UP/DOWN OR 1-3 MODE', H * 0.83, '#ffffff', 8);
@@ -1009,6 +1020,64 @@
   victoryArt.src = 'assets/victory-royale.png';
 
   const CONFETTI_COLORS = ['#ffd447', '#ff9ad5', '#3fd8e8', '#7ee07a', '#ffffff', '#f2a03c'];
+
+  const FIREWORK_COLORS = ['#ffd447', '#7ef0ff', '#ff9ad5', '#7ee07a', '#ffffff', '#ff7a4f'];
+
+  /** A burst of sparks that arc out and fall away. */
+  function spawnFirework(x, y) {
+    const color = FIREWORK_COLORS[Math.floor(Math.random() * FIREWORK_COLORS.length)];
+    const sparks = [];
+    const n = 26 + Math.floor(Math.random() * 14);
+    const power = 90 + Math.random() * 90;
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2 + Math.random() * 0.2;
+      const v = power * (0.55 + Math.random() * 0.6);
+      sparks.push({ x: x, y: y, vx: Math.cos(a) * v, vy: Math.sin(a) * v,
+        life: 0.8 + Math.random() * 0.7 });
+    }
+    game.fireworks.push({ sparks: sparks, color: color, flash: 1 });
+  }
+
+  function updateFireworks(dt) {
+    // a new burst every so often, roughly where the eye is not already looking
+    if (Math.random() < dt * 2.2) {
+      spawnFirework(W * (0.12 + Math.random() * 0.76), H * (0.1 + Math.random() * 0.55));
+    }
+    game.fireworks.forEach(function (fw) {
+      fw.flash = Math.max(0, fw.flash - dt * 6);
+      fw.sparks.forEach(function (s) {
+        s.life -= dt;
+        s.x += s.vx * dt;
+        s.y += s.vy * dt;
+        s.vy += 110 * dt;            // gravity
+        s.vx *= 1 - dt * 0.9;        // drag
+      });
+      fw.sparks = fw.sparks.filter(function (s) { return s.life > 0; });
+    });
+    game.fireworks = game.fireworks.filter(function (fw) { return fw.sparks.length; });
+  }
+
+  function drawFireworks() {
+    game.fireworks.forEach(function (fw) {
+      if (fw.flash > 0) {
+        ctx.save();
+        ctx.globalAlpha = fw.flash * 0.5;
+        ctx.fillStyle = fw.color;
+        ctx.beginPath();
+        ctx.arc(fw.sparks[0].x, fw.sparks[0].y, 26 * fw.flash, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+      fw.sparks.forEach(function (s) {
+        ctx.globalAlpha = Math.min(1, s.life * 1.6);
+        ctx.fillStyle = fw.color;
+        ctx.fillRect(s.x, s.y, 3, 3);
+        ctx.globalAlpha = Math.min(1, s.life) * 0.4;
+        ctx.fillRect(s.x - s.vx * 0.02, s.y - s.vy * 0.02, 2, 2);
+      });
+      ctx.globalAlpha = 1;
+    });
+  }
 
   function spawnConfetti() {
     game.confetti = [];
@@ -1050,19 +1119,49 @@
   }
 
   function drawVictory() {
-    ctx.fillStyle = 'rgba(4, 10, 18, 0.78)';
-    ctx.fillRect(0, 0, W, H);
-    drawConfetti();
-
     const pop = Math.min(1, game.winTimer / 0.5);
     const ease = 1 - Math.pow(1 - pop, 3);
 
-    // the banner slides in from the left and settles
+    // deep blue wash, the way the game desaturates behind the banner
+    ctx.fillStyle = 'rgba(6, 14, 30, 0.82)';
+    ctx.fillRect(0, 0, W, H);
+
+    // light rays turning slowly behind everything
+    ctx.save();
+    ctx.translate(W / 2, H * 0.42);
+    ctx.rotate(game.winTimer * 0.12);
+    ctx.globalAlpha = 0.16 * ease;
+    for (let i = 0; i < 14; i++) {
+      ctx.rotate((Math.PI * 2) / 14);
+      const g = ctx.createLinearGradient(0, 0, 0, -H);
+      g.addColorStop(0, 'rgba(140, 215, 255, 0.85)');
+      g.addColorStop(1, 'rgba(140, 215, 255, 0)');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(-W * 0.06, -H);
+      ctx.lineTo(W * 0.06, -H);
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.restore();
+
+    // glow pooled behind the banner
+    const glow = ctx.createRadialGradient(W / 2, H * 0.42, 0, W / 2, H * 0.42, W * 0.62);
+    glow.addColorStop(0, 'rgba(90, 180, 255, ' + (0.4 * ease) + ')');
+    glow.addColorStop(1, 'rgba(90, 180, 255, 0)');
+    ctx.fillStyle = glow;
+    ctx.fillRect(0, 0, W, H);
+
+    drawConfetti();
+    drawFireworks();
+
+    // the banner, sliding in and settling
     ctx.save();
     ctx.globalAlpha = ease;
     ctx.translate(-(1 - ease) * W * 0.5, 0);
     if (victoryArtReady) {
-      const bw = W * 0.88;
+      const bw = W * 0.88 * (0.92 + 0.08 * ease);
       const bh = bw * (victoryArt.height / victoryArt.width);
       ctx.imageSmoothingEnabled = true;
       ctx.drawImage(victoryArt, W / 2 - bw / 2, H * 0.40 - bh / 2, bw, bh);
@@ -1073,21 +1172,51 @@
     }
     ctx.restore();
 
-    const y = H * 0.60;
-    bannerText(diff().name + ' MODE CLEARED', y, diff().color, 11);
-    bannerText('ALL ' + diff().levels + ' BOARDS', y + H * 0.05, '#ffffff', 10);
-    bannerText('SCORE ' + game.score, y + H * 0.105, '#ffd447', 14);
+    // stat bar, the row of numbers the end screen shows
+    const barY = H * 0.60;
+    const barH = H * 0.115;
+    ctx.fillStyle = 'rgba(8, 20, 40, 0.75)';
+    ctx.fillRect(W * 0.1, barY, W * 0.8, barH);
+    ctx.strokeStyle = 'rgba(126, 240, 255, 0.5)';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(W * 0.1, barY, W * 0.8, barH);
+
+    const stats = [
+      ['ELIMS', String(game.eliminations)],
+      ['SCORE', String(game.score)],
+      ['BOARDS', String(diff().levels)]
+    ];
+    stats.forEach(function (stat, i) {
+      const x = W * (0.1 + 0.8 * ((i + 0.5) / stats.length));
+      ctx.save();
+      ctx.textAlign = 'center';
+      ctx.font = 'bold ' + Math.round(8 * UNIT) + 'px "Press Start 2P", monospace';
+      ctx.fillStyle = 'rgba(180, 225, 255, 0.85)';
+      ctx.fillText(stat[0], x, barY + barH * 0.36);
+      ctx.font = 'bold ' + Math.round(14 * UNIT) + 'px "Press Start 2P", monospace';
+      ctx.fillStyle = '#ffd447';
+      ctx.fillText(stat[1], x, barY + barH * 0.8);
+      ctx.restore();
+    });
+
+    bannerText(currentMap().name + '  -  ' + diff().name, H * 0.755, diff().color, 9);
     if (game.wins > 1) {
-      bannerText('WIN #' + game.wins + ' ON THIS MODE', y + H * 0.15, 'rgba(255,255,255,0.7)', 8);
+      bannerText('WIN #' + game.wins + ' HERE', H * 0.80, 'rgba(255,255,255,0.7)', 8);
     }
-    bannerText('PRESS ENTER TO PLAY AGAIN', H * 0.86, '#ffd447', 10);
+    bannerText('PRESS ENTER TO PLAY AGAIN', H * 0.88, '#ffd447', 10);
     if (game.difficulty !== 'extreme') {
-      bannerText('1-3 TO TRY A HARDER MODE', H * 0.91, 'rgba(255,255,255,0.65)', 8);
+      bannerText('1-3 TO TRY A HARDER MODE', H * 0.925, 'rgba(255,255,255,0.65)', 8);
     }
 
-    // the champion burger, front and centre
-    Sprites.drawPac(ctx, W / 2, H * 0.17, 46 * UNIT, 'right',
+    // the champion, up top
+    Sprites.drawPac(ctx, W / 2, H * 0.15, 46 * UNIT, 'right',
       Math.abs(Math.sin(game.frame * 0.09)));
+
+    // one white flash as the screen lands
+    if (game.winTimer < 0.35) {
+      ctx.fillStyle = 'rgba(255,255,255,' + (0.75 * (1 - game.winTimer / 0.35)) + ')';
+      ctx.fillRect(0, 0, W, H);
+    }
   }
 
   /** The map selector: arrows either side of the current map's name. */
@@ -1238,6 +1367,7 @@
       case STATE.WIN:
         game.winTimer += dt;
         updateConfetti(dt);
+        updateFireworks(dt);
         break;
 
       default:

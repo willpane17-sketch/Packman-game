@@ -294,10 +294,99 @@
     px(ctx, 9, 17, '#e2657a', 4, 1);
   }
 
+
+  // Raven: the hooded silhouette, bone beak and glowing eyes. Shares the
+  // round head shape with Tomato Head so both read the same way in play.
+  const RAVEN = { light: '#3a2a52', base: '#241a33', dark: '#120c1e', spec: '#584077' };
+  const BEAK = '#cdc5b0';
+  const BEAK_D = '#8e876f';
+  const RAVEN_GLOW = '#c6a6ff';
+
+  function ravenTones(mode) {
+    if (mode === 'fright') return FRIGHT;
+    if (mode === 'flash') return FLASHT;
+    return RAVEN;
+  }
+
+  function paintRaven(ctx, color, frame, mode) {
+    const t = ravenTones(mode);
+
+    // cloak collar in this ghost's colour
+    const collar = mode === 'fright' ? '#1b2ba8' : (mode === 'flash' ? '#c8c8c8' : color);
+    const collarD = mix(mode === 'fright' ? '#1b2ba8' : (mode === 'flash' ? '#c8c8c8' : color), '#000000', 0.5);
+    px(ctx, 3, 17, collarD, 16, 5);
+    px(ctx, 4, 17, collar, 14, 3);
+    px(ctx, 2, 19, collarD, 18, 2);
+    px(ctx, 3, 19, collar, 16, 1);
+
+    // hood
+    for (let y = 0; y < G_H; y++) {
+      for (let x = 0; x < G_W; x++) {
+        const dx = x + 0.5 - HEAD_CX;
+        const dy = y + 0.5 - HEAD_CY;
+        const d = Math.sqrt(dx * dx + dy * dy);
+        if (d > HEAD_R) continue;
+        px(ctx, x, y, d > HEAD_R - 1.3 ? t.dark : (d > HEAD_R - 3.2 ? t.base : t.light));
+      }
+    }
+    // feathered crest and hood peak
+    px(ctx, 9, 0, t.dark, 4, 2);
+    px(ctx, 8, 1, t.base, 6, 2);
+    px(ctx, 6, 2, t.dark, 3, 1);
+    px(ctx, 13, 2, t.dark, 3, 1);
+    px(ctx, 4, 4, t.dark, 3, 2);
+    px(ctx, 15, 4, t.dark, 3, 2);
+    // the hood's inner shadow, framing the face
+    px(ctx, 5, 6, t.dark, 12, 1);
+    px(ctx, 4, 7, t.dark, 2, 4);
+    px(ctx, 16, 7, t.dark, 2, 4);
+
+    if (mode === 'fright' || mode === 'flash') return;
+
+    // wing feathers at the shoulders
+    px(ctx, 2, 14, t.light, 3, 3);
+    px(ctx, 17, 14, t.light, 3, 3);
+    px(ctx, 2, 15, t.dark, 2, 1);
+    px(ctx, 18, 15, t.dark, 2, 1);
+  }
+
+  function paintRavenFace(ctx, dir, mode) {
+    if (mode === 'fright' || mode === 'flash') {
+      const fg = mode === 'flash' ? '#d02020' : '#ffffff';
+      px(ctx, 6, 8, fg, 2, 2);
+      px(ctx, 14, 8, fg, 2, 2);
+      for (let x = 5; x <= 16; x++) px(ctx, x, 13 + (x % 2 === 0 ? 0 : 1), fg);
+      return;
+    }
+    let ox = 0, oy = 0;
+    if (dir === 'left') ox = -1;
+    if (dir === 'right') ox = 1;
+    if (dir === 'up') oy = -1;
+    if (dir === 'down') oy = 1;
+
+    // glowing eyes
+    px(ctx, 5 + ox, 8 + oy, RAVEN_GLOW, 4, 3);
+    px(ctx, 13 + ox, 8 + oy, RAVEN_GLOW, 4, 3);
+    px(ctx, 6 + ox, 9 + oy, '#ffffff', 2, 1);
+    px(ctx, 14 + ox, 9 + oy, '#ffffff', 2, 1);
+
+    // the long bone beak
+    px(ctx, 8, 11, BEAK, 6, 2);
+    px(ctx, 9, 13, BEAK, 4, 2);
+    px(ctx, 10, 15, BEAK, 3, 2);
+    px(ctx, 10, 17, BEAK, 2, 1);
+    px(ctx, 8, 12, BEAK_D, 6, 1);
+    px(ctx, 9, 14, BEAK_D, 4, 1);
+    px(ctx, 10, 16, BEAK_D, 3, 1);
+    px(ctx, 11, 18, BEAK_D, 1, 1);
+    // stitched seam across the mask
+    px(ctx, 8, 11, '#efe9d8', 6, 1);
+  }
+
   const ghostCache = {};
 
-  function ghostSprite(color, frame, mode, dir) {
-    const key = color + '|' + frame + '|' + mode + '|' + dir;
+  function ghostSprite(color, frame, mode, dir, skin) {
+    const key = skin + '|' + color + '|' + frame + '|' + mode + '|' + dir;
     if (ghostCache[key]) return ghostCache[key];
     const c = makeCanvas(G_W, G_H);
     if (mode === 'eaten') {
@@ -315,14 +404,19 @@
       ghostCache[key] = e.canvas;
       return e.canvas;
     }
-    paintTomato(c.ctx, color, frame, mode);
-    paintFace(c.ctx, dir, mode);
+    if (skin === 'raven') {
+      paintRaven(c.ctx, color, frame, mode);
+      paintRavenFace(c.ctx, dir, mode);
+    } else {
+      paintTomato(c.ctx, color, frame, mode);
+      paintFace(c.ctx, dir, mode);
+    }
     ghostCache[key] = c.canvas;
     return c.canvas;
   }
 
-  function drawGhost(ctx, cx, cy, size, color, frame, mode, dir) {
-    const img = ghostSprite(color, frame, mode, dir);
+  function drawGhost(ctx, cx, cy, size, color, frame, mode, dir, skin) {
+    const img = ghostSprite(color, frame, mode, dir, skin || 'tomato');
     const scale = size / 19;          // the head spans about 18 of 22 columns
     ctx.imageSmoothingEnabled = false;
     ctx.drawImage(img, Math.round(cx - 11 * scale), Math.round(cy - 11 * scale),
@@ -352,20 +446,20 @@
    * white label.
    */
   const CHUG_JUG = [
-    '     CCCC       ',
-    '    cCCCCc      ',
-    '    sYYYYs      ',
-    '   jYYYYYYj     ',
+    '     nNNn       ',
+    '     NNNN       ',
+    '    cNNNNc      ',
+    '    jSSSSj      ',
+    '   jYSSSSYj     ',
     '  jYYYYYYYYj HH ',
     ' jYYYYYYYYYYjHHH',
-    ' YYYYYYYYYYYYH h',
-    ' YWWWWWWWWWWYH h',
-    ' YWBBBBBBBBWYH h',
-    ' YWWWWWWWWWWYH h',
-    ' YYYYYYYYYYYYH h',
-    ' YYYYYYYYYYYYHHH',
-    ' YYYYYYYYYYYY HH',
-    ' jYYYYYYYYYYj   ',
+    ' YSYYYYYYYYYYH h',
+    ' YSWWWWWWWWYYH h',
+    ' YSWLLLLLLWYYH h',
+    ' YSWWWWWWWWYYH h',
+    ' YSYYYYYYYYYYH h',
+    ' YSYYYYYYYYYYHHH',
+    ' jYYYYYYYYYYj HH',
     '  jYYYYYYYYj    ',
     '   jjjjjjjj     '
   ];
@@ -377,7 +471,7 @@
     B: '#4fc3ff', b: '#1b74b8', d: '#17608f', s: '#ffe58a', // shield blue / jug sheen
     Y: '#f5c132', y: '#b3811a', j: '#8a5f10',             // jug amber
     W: '#f2f5f8', L: '#2f7fd4',                           // label
-    S: '#ffe58a',                                         // liquid highlight
+    S: '#ffe9a0',                                         // liquid highlight
     H: '#c7a02a', h: '#9a7a18',                           // handle
     w: '#ffffff', A: '#7ef0ff'
   };
@@ -462,62 +556,49 @@
   /* ------------------------------------------------------------------ */
   /* BONUS LOOT (the "fruit")                                            */
   /* ------------------------------------------------------------------ */
+  /**
+   * The Loot Llama: a piñata in cream, blue and magenta with a pack strapped
+   * to its back. Every bonus pick-up is one of these; what changes with the
+   * level is what it is worth.
+   */
+  const LLAMA = [
+    '        wwww    ',
+    '       wWWWWm   ',
+    '       wWbbWm   ',
+    '       wWWWWm   ',
+    '        wWWm    ',
+    '     wwwwWWm    ',
+    '   wWWWWWWWm    ',
+    '  wWWWWWWWWWm   ',
+    '  mBBBBBBBBBm   ',
+    '  mBpBpBpBpBm   ',
+    '  mWWWWWWWWWm   ',
+    '  mWWWWWWWWWm   ',
+    '  mWpWWWWWpWm   ',
+    '  mmWmmmmWmm    ',
+    '   mWm  mWm     ',
+    '   mmm  mmm     '
+  ];
+
+  const LLAMA_COLORS = {
+    W: '#f4f1e8',      // cream body
+    w: '#ffffff',      // highlight
+    m: '#5a4a52',      // outline
+    B: '#3fb8e8',      // blue band
+    p: '#ff4fc3',      // magenta detail
+    b: '#2a2a33'       // eye
+  };
+
   function makeLlama() {
-    const c = makeCanvas(16, 16);
-    const ctx = c.ctx;
-    const P = '#ff5fd0', B = '#3ec8ff', W = '#fdf6ff';
-    px(ctx, 3, 4, W, 9, 6);      // body
-    px(ctx, 3, 10, W, 2, 4);     // legs
-    px(ctx, 9, 10, W, 2, 4);
-    px(ctx, 10, 1, W, 4, 4);     // head
-    px(ctx, 9, 3, W, 2, 2);      // neck
-    px(ctx, 10, 0, P, 1, 1);     // ears
-    px(ctx, 13, 0, P, 1, 1);
-    px(ctx, 3, 4, P, 9, 2);      // blanket
-    px(ctx, 3, 8, B, 9, 1);
-    px(ctx, 12, 2, '#101010', 1, 1);
-    return c.canvas;
+    return bakePixels(LLAMA, LLAMA_COLORS);
   }
 
-  function makeFries() {
-    const c = makeCanvas(16, 16);
-    const ctx = c.ctx;
-    px(ctx, 5, 1, '#ffd447', 1, 6);
-    px(ctx, 7, 0, '#ffe27a', 1, 7);
-    px(ctx, 9, 2, '#ffd447', 1, 5);
-    px(ctx, 4, 6, '#e23b3b', 8, 9);
-    px(ctx, 6, 8, '#fdf6ff', 1, 5);
-    px(ctx, 9, 8, '#fdf6ff', 1, 5);
-    return c.canvas;
-  }
-
-  function makeChug() {
-    const c = makeCanvas(16, 16);
-    const ctx = c.ctx;
-    px(ctx, 5, 0, '#8d97ad', 5, 2);
-    px(ctx, 4, 2, '#e2b23c', 8, 12);
-    px(ctx, 5, 4, '#f7d980', 2, 8);
-    px(ctx, 12, 5, '#8d97ad', 2, 4);
-    px(ctx, 4, 13, '#a5801e', 8, 2);
-    return c.canvas;
-  }
-
-  function makeShield() {
-    const c = makeCanvas(16, 16);
-    const ctx = c.ctx;
-    px(ctx, 4, 1, '#5ce1e6', 8, 8);
-    px(ctx, 5, 9, '#5ce1e6', 6, 2);
-    px(ctx, 6, 11, '#5ce1e6', 4, 2);
-    px(ctx, 7, 13, '#5ce1e6', 2, 1);
-    px(ctx, 6, 3, '#ffffff', 4, 4);
-    return c.canvas;
-  }
-
+  const llamaImg = makeLlama();
   const LOOT = [
-    { name: 'Loot Llama', points: 100, img: makeLlama() },
-    { name: 'Fries', points: 300, img: makeFries() },
-    { name: 'Chug Jug', points: 500, img: makeChug() },
-    { name: 'Shield', points: 1000, img: makeShield() }
+    { name: 'Loot Llama', points: 100, img: llamaImg },
+    { name: 'Loot Llama', points: 300, img: llamaImg },
+    { name: 'Loot Llama', points: 500, img: llamaImg },
+    { name: 'Loot Llama', points: 1000, img: llamaImg }
   ];
 
   function drawLoot(ctx, index, cx, cy, size) {

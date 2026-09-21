@@ -18,6 +18,7 @@
       key: 'tilted',
       name: 'TILTED TOWERS',
       theme: 'city',
+      skin: 'tomato',
       blurb: 'CONCRETE TOWERS, ROADS AND THE RIVER',
       rows: [
       '############################',
@@ -57,6 +58,7 @@
       key: 'divot',
       name: 'DUSTY DIVOT',
       theme: 'crater',
+      skin: 'raven',
       blurb: 'THE METEOR CRATER AND ITS RESEARCH SITE',
       rows: [
       '############################',
