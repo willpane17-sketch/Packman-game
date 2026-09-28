@@ -240,6 +240,7 @@
     comboMult: 1,
     comboTimer: 0,
     comboBest: 0,
+    bestMult: 1,
     // --- run tallies, shown on the end screens ---
     tally: { pellets: 0, enemies: 0, powerups: 0, combo: 0, boss: 0, secret: 0, level: 0 },
     pickups: 0,
@@ -518,6 +519,7 @@
     game.combo = 0;
     game.comboMult = 1;
     game.comboBest = 0;
+    game.bestMult = 1;
     game.pickups = 0;
     game.secrets = 0;
     game.bosses = 0;
@@ -824,7 +826,7 @@
   }
 
   const COMBO_WINDOW = 2.4;        // seconds to keep the chain alive
-  const COMBO_MAX = 8;
+  const COMBO_MAX = 10;
 
   /** Every pick-up extends the chain; ten in a row raises the multiplier. */
   function bumpCombo(x, y) {
@@ -834,6 +836,7 @@
     const mult = Math.min(COMBO_MAX, 1 + Math.floor(game.combo / 10));
     if (mult !== game.comboMult) {
       game.comboMult = mult;
+      if (mult > game.bestMult) { game.bestMult = mult; grantAchievements(); }
       if (mult > 1) {
         FX.float(x, y - TILE, 'COMBO x' + mult, '#ff9ad5', { size: 11, life: 1.3 });
         FX.flash('#ff9ad5', 0.12, 0.18);
@@ -915,6 +918,7 @@
     game.releaseTimer = 0;
 
     game.pickups++;
+    if (game.pickups === 1 || game.pickups % 25 === 0) grantAchievements();
     if (game.bonusRound) game.bonusCollected++;
     bumpCombo(pac.x, pac.y);
 
@@ -1786,15 +1790,15 @@
   function grantAchievements(extra) {
     const stats = {
       pickups: game.pickups,
-      combo: game.comboBest >= 10 ? Math.floor(game.comboBest / 10) * 10 : 0,
+      combo: 0,
       bosses: game.bosses,
       secrets: game.secrets,
       noHit: extra && extra.noHit,
       clearTime: extra && extra.clearTime,
       wonExtreme: extra && extra.wonExtreme
     };
-    // the 10X COMBO badge is about the multiplier, not the raw chain
-    stats.combo = game.comboMult >= 10 ? 10 : (Math.min(COMBO_MAX, 1 + Math.floor(game.comboBest / 10)) >= 8 ? 10 : 0);
+    // the 10X COMBO badge is about the multiplier the run reached
+    stats.combo = game.bestMult >= 10 ? 10 : 0;
     const fired = Achievements.check(stats);
     if (fired.length) Sound.achievement();
   }
