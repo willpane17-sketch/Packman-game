@@ -82,6 +82,10 @@
       tone(1400, 0.3, 'sine', 0.06, 0, 500);
       tone(900, 0.3, 'triangle', 0.05, 0.05, 380);
     },
+    wrong: function () {
+      tone(300, 0.16, 'square', 0.07, 0, 170);
+      tone(190, 0.26, 'sawtooth', 0.06, 0.1, 110);
+    },
     shield: function () {
       tone(300, 0.2, 'square', 0.08, 0, 900);
     },

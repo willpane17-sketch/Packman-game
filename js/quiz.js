@@ -328,7 +328,7 @@
       why: 'That duty overrides any obligation to whoever instructed them.' }
   ];
 
-  const COOLDOWN = 7;              // seconds before another question can be asked
+  const COOLDOWN = 0;              // the game's own 20s clock paces the questions
   const COLORS = {
     panel: '#0b1f1a', edge: '#7ef0ff', dim: '#8fb8b0',
     right: '#7ee07a', wrong: '#ff5a5a', pick: '#ffd447'
@@ -478,7 +478,7 @@
       ctx.fillStyle = COLORS.dim;
       ctx.fillText('DIGITAL FORENSICS / ' + cur.t, x + pad, cy);
       ctx.textAlign = 'right';
-      ctx.fillText('POWER-UP LOCKED', x + cardW - pad, cy);
+      ctx.fillText('RIGHT = POWER-UP', x + cardW - pad, cy);
       ctx.textAlign = 'left';
       cy += 14 * UNIT;
 
@@ -510,8 +510,8 @@
       if (phase === 'reveal') {
         ctx.fillStyle = sel === cur.c ? COLORS.right : COLORS.wrong;
         ctx.font = 'bold ' + Math.round(8 * UNIT) + 'px "Press Start 2P", monospace';
-        ctx.fillText(sel === cur.c ? 'CORRECT - POWER-UP UNLOCKED'
-                                   : 'WRONG - POWER-UP LOST', x + pad, cy);
+        ctx.fillText(sel === cur.c ? 'CORRECT - POWER-UP!'
+                                   : 'WRONG - SETBACK', x + pad, cy);
         cy += 12 * UNIT;
         ctx.font = 'bold ' + Math.round(7 * UNIT) + 'px "Press Start 2P", monospace';
         ctx.fillStyle = COLORS.dim;

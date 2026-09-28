@@ -383,6 +383,206 @@
     px(ctx, 8, 11, '#efe9d8', 6, 1);
   }
 
+  /* ------------------------------------------------------------------ */
+  /* JONESY - the blonde soldier                                         */
+  /* ------------------------------------------------------------------ */
+  const JONESY = { light: '#ffd3a8', base: '#f0a97c', dark: '#bd7749', spec: '#ffeada' };
+  const HAIR = '#f0c23c';
+  const HAIR_L = '#ffe37a';
+  const HAIR_D = '#b8860d';
+  const OLIVE = '#6b7343';
+  const OLIVE_D = '#464c2a';
+  const SHIELD = '#e8a05a';
+  const SHIELD_D = '#a96c31';
+
+  function jonesyTones(mode) {
+    if (mode === 'fright') return FRIGHT;
+    if (mode === 'flash') return FLASHT;
+    return JONESY;
+  }
+
+  /**
+   * Jonesy: the round face under a mop of blonde hair, an olive tunic and
+   * the little skull shield on his shoulder.
+   */
+  function paintJonesy(ctx, color, frame, mode) {
+    const t = jonesyTones(mode);
+    const flat = mode === 'fright' || mode === 'flash';
+
+    // ---- tunic collar, in this ghost's colour ----
+    const collar = mode === 'fright' ? '#1b2ba8' : (mode === 'flash' ? '#c8c8c8' : color);
+    const collarD = mix(collar === color ? color : collar, '#000000', 0.45);
+    px(ctx, 3, 17, collarD, 16, 5);
+    px(ctx, 4, 17, collar, 14, 3);
+    px(ctx, 2, 19, collarD, 18, 2);
+    px(ctx, 3, 19, collar, 16, 1);
+    if (!flat) {
+      // olive shoulders over the collar
+      px(ctx, 4, 16, OLIVE, 14, 2);
+      px(ctx, 3, 18, OLIVE_D, 3, 2);
+      px(ctx, 16, 18, OLIVE_D, 3, 2);
+      // the strap across the chest
+      px(ctx, 7, 18, OLIVE_D, 8, 1);
+      px(ctx, 10, 19, '#9aa2ab', 2, 2);
+    }
+
+    // ---- the face ----
+    for (let y = 0; y < G_H; y++) {
+      for (let x = 0; x < G_W; x++) {
+        const dx = x + 0.5 - HEAD_CX;
+        const dy = y + 0.5 - HEAD_CY;
+        const d = Math.sqrt(dx * dx + dy * dy);
+        if (d > HEAD_R) continue;
+        px(ctx, x, y, d > HEAD_R - 1.2 ? t.dark : (d > HEAD_R - 2.6 ? t.base : t.light));
+      }
+    }
+    if (!flat) {
+      px(ctx, 5, 6, t.spec, 2, 1);
+      px(ctx, 15, 14, t.dark, 2, 1);           // jaw shadow
+    }
+
+    // ---- blonde hair: a spiky cap over the top of the head ----
+    const hair = flat ? (mode === 'flash' ? '#d8d8d8' : '#3344cc') : HAIR;
+    const hairL = flat ? (mode === 'flash' ? '#f0f0f0' : '#5566ee') : HAIR_L;
+    const hairD = flat ? (mode === 'flash' ? '#a8a8a8' : '#1b2ba8') : HAIR_D;
+    for (let y = 0; y < 8; y++) {
+      for (let x = 0; x < G_W; x++) {
+        const dx = x + 0.5 - HEAD_CX;
+        const dy = y + 0.5 - HEAD_CY;
+        const d = Math.sqrt(dx * dx + dy * dy);
+        if (d > HEAD_R - 0.2) continue;
+        // the face starts at row 4; below that only the side locks remain,
+        // so the eyes sit on skin rather than under a helmet of hair
+        if (y >= 4 && x >= 5 && x <= 16) continue;
+        px(ctx, x, y, d > HEAD_R - 1.6 ? hairD : hair);
+      }
+    }
+    // a ragged fringe across the brow
+    px(ctx, 5, 4, hair, 2, 1);
+    px(ctx, 8, 4, hair, 2, 1);
+    px(ctx, 12, 4, hair, 2, 1);
+    px(ctx, 15, 4, hair, 2, 1);
+    // the spikes along the top
+    px(ctx, 7, 0, hair, 3, 2);
+    px(ctx, 11, 0, hair, 2, 2);
+    px(ctx, 14, 1, hair, 2, 2);
+    px(ctx, 5, 2, hair, 2, 2);
+    px(ctx, 8, 1, hairL, 1, 1);
+    px(ctx, 12, 1, hairL, 1, 1);
+    px(ctx, 6, 3, hairL, 3, 1);
+    px(ctx, 3, 5, hairD, 2, 3);
+    px(ctx, 17, 5, hairD, 2, 3);
+
+    if (flat) return;
+
+    // ---- skull shield on the shoulder ----
+    // kept small and low: at play size the head is the thing that has to
+    // read, and a big slab beside it just muddies the silhouette
+    px(ctx, 0, 15, SHIELD_D, 5, 6);
+    px(ctx, 1, 16, SHIELD, 3, 4);
+    px(ctx, 1, 17, '#3a2216', 3, 2);           // skull
+    px(ctx, 2, 17, SHIELD, 1, 1);
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* CUDDLE TEAM LEADER - the pink bear                                  */
+  /* ------------------------------------------------------------------ */
+  const CUDDLE = { light: '#ff74b4', base: '#ef4b94', dark: '#b32a68', spec: '#ffb3d6' };
+  const MUZZLE = '#ffd3e8';
+  const MUZZLE_D = '#e39dc0';
+
+  function cuddleTones(mode) {
+    if (mode === 'fright') return FRIGHT;
+    if (mode === 'flash') return FLASHT;
+    return CUDDLE;
+  }
+
+  /**
+   * Cuddle Team Leader: round bear head with two ears, a pale muzzle and
+   * the broken heart on the bib.
+   */
+  function paintCuddle(ctx, color, frame, mode) {
+    const t = cuddleTones(mode);
+    const flat = mode === 'fright' || mode === 'flash';
+
+    // ---- collar / bib, in this ghost's colour ----
+    const collar = mode === 'fright' ? '#1b2ba8' : (mode === 'flash' ? '#c8c8c8' : color);
+    const collarD = mix(collar === color ? color : collar, '#000000', 0.45);
+    px(ctx, 3, 17, collarD, 16, 5);
+    px(ctx, 4, 17, collar, 14, 3);
+    px(ctx, 2, 19, collarD, 18, 2);
+    px(ctx, 3, 19, collar, 16, 1);
+    if (!flat) {
+      // paws either side
+      px(ctx, 2, 16, t.base, 3, 4);
+      px(ctx, 17, 16, t.base, 3, 4);
+      px(ctx, 2, 16, t.light, 2, 2);
+      px(ctx, 18, 16, t.light, 2, 2);
+      // the white bib and its broken heart
+      px(ctx, 8, 18, '#fdf0f6', 6, 4);
+      px(ctx, 9, 19, '#1a1016', 1, 2);
+      px(ctx, 12, 19, '#1a1016', 1, 2);
+      px(ctx, 10, 19, '#1a1016', 1, 1);
+      px(ctx, 11, 20, '#1a1016', 1, 1);
+      px(ctx, 10, 21, '#1a1016', 2, 1);
+    }
+
+    // ---- ears, behind the head ----
+    const earD = flat ? t.dark : mix('#ef4b94', '#000000', 0.35);
+    px(ctx, 1, 1, earD, 6, 6);
+    px(ctx, 15, 1, earD, 6, 6);
+    px(ctx, 2, 2, t.base, 4, 4);
+    px(ctx, 16, 2, t.base, 4, 4);
+    if (!flat) {
+      px(ctx, 3, 3, MUZZLE, 2, 2);
+      px(ctx, 17, 3, MUZZLE, 2, 2);
+    }
+
+    // ---- the head ----
+    for (let y = 0; y < G_H; y++) {
+      for (let x = 0; x < G_W; x++) {
+        const dx = x + 0.5 - HEAD_CX;
+        const dy = y + 0.5 - HEAD_CY;
+        const d = Math.sqrt(dx * dx + dy * dy);
+        if (d > HEAD_R) continue;
+        px(ctx, x, y, d > HEAD_R - 1.2 ? t.dark : (d > HEAD_R - 2.6 ? t.base : t.light));
+      }
+    }
+    if (flat) return;
+    px(ctx, 5, 4, t.spec, 3, 1);
+    px(ctx, 4, 5, t.spec, 2, 2);
+    px(ctx, 14, 6, t.spec, 2, 1);
+  }
+
+  /** The pale muzzle and heart nose, drawn over the eyes' row. */
+  function paintCuddleFace(ctx, dir, mode) {
+    if (mode === 'fright' || mode === 'flash') { paintFace(ctx, dir, mode); return; }
+    let ox = 0, oy = 0;
+    if (dir === 'left') ox = -1;
+    if (dir === 'right') ox = 1;
+    if (dir === 'up') oy = -1;
+    if (dir === 'down') oy = 1;
+
+    px(ctx, 5, 7, '#2a0c18', 5, 5);
+    px(ctx, 12, 7, '#2a0c18', 5, 5);
+    px(ctx, 6, 8, '#ffffff', 4, 4);
+    px(ctx, 13, 8, '#ffffff', 4, 4);
+    px(ctx, 7 + ox, 9 + oy, '#141414', 2, 2);
+    px(ctx, 14 + ox, 9 + oy, '#141414', 2, 2);
+    px(ctx, 6, 8, '#ffffff', 1, 1);
+    px(ctx, 13, 8, '#ffffff', 1, 1);
+
+    // muzzle
+    px(ctx, 7, 12, MUZZLE_D, 8, 5);
+    px(ctx, 7, 12, MUZZLE, 7, 4);
+    // heart nose
+    px(ctx, 9, 13, '#1a1016', 1, 2);
+    px(ctx, 12, 13, '#1a1016', 1, 2);
+    px(ctx, 10, 13, '#1a1016', 2, 1);
+    px(ctx, 10, 14, '#1a1016', 2, 1);
+    px(ctx, 10, 15, '#1a1016', 2, 1);
+  }
+
   const ghostCache = {};
 
   function ghostSprite(color, frame, mode, dir, skin) {
@@ -407,6 +607,12 @@
     if (skin === 'raven') {
       paintRaven(c.ctx, color, frame, mode);
       paintRavenFace(c.ctx, dir, mode);
+    } else if (skin === 'jonesy') {
+      paintJonesy(c.ctx, color, frame, mode);
+      paintFace(c.ctx, dir, mode);
+    } else if (skin === 'cuddle') {
+      paintCuddle(c.ctx, color, frame, mode);
+      paintCuddleFace(c.ctx, dir, mode);
     } else {
       paintTomato(c.ctx, color, frame, mode);
       paintFace(c.ctx, dir, mode);

@@ -98,7 +98,7 @@
       key: 'lake',
       name: 'LOOT LAKE',
       theme: 'lake',
-      skin: 'tomato',
+      skin: 'jonesy',
       hazard: 'water',
       blurb: 'JETTIES, SHALLOWS AND THE HOUSE ON THE WATER',
       rows: [
@@ -139,7 +139,7 @@
       key: 'park',
       name: 'PLEASANT PARK',
       theme: 'park',
-      skin: 'raven',
+      skin: 'cuddle',
       hazard: 'hedge',
       blurb: 'THE VILLAGE GREEN AND ITS QUIET STREETS',
       rows: [

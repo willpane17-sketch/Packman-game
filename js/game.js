@@ -77,8 +77,6 @@
       scatter: 1.9,       // scales the scatter phases (more time not being hunted)
       extraLife: 8000,
       scoreMul: 1,
-      powerEvery: 9,      // seconds between power-up spawns
-      powerMax: 3,        // how many can sit on the board at once
       eventEvery: 26      // seconds between random events
     },
     hard: {
@@ -97,8 +95,6 @@
       scatter: 1,
       extraLife: 10000,
       scoreMul: 2,
-      powerEvery: 16,
-      powerMax: 2,
       eventEvery: 20
     },
     extreme: {
@@ -117,8 +113,6 @@
       scatter: 0.22,      // barely any respite from the chase
       extraLife: 25000,
       scoreMul: 4,
-      powerEvery: 26,
-      powerMax: 1,
       eventEvery: 13
     }
   };
@@ -253,7 +247,8 @@
     // --- systems ---
     powerups: [],
     active: {},
-    powerTimer: 0,
+    setbacks: {},
+    quizTimer: 0,
     shieldGrace: 0,
     event: null,
     eventTimer: 0,
@@ -420,7 +415,10 @@
     // per-board system reset
     game.powerups = [];
     game.active = {};
-    game.powerTimer = diff().powerEvery * 0.6;
+    game.setbacks = {};
+    // the first question of a board comes sooner, so a new player meets the
+    // mechanic before the maze gets busy
+    game.quizTimer = fresh ? QUIZ_FIRST : QUIZ_EVERY;
     game.event = null;
     game.eventTimer = diff().eventEvery;
     game.shiftTiles = [];
@@ -443,6 +441,10 @@
   }
 
   function resetPositions() {
+    // losing a life is punishment enough; a setback does not carry over, and
+    // a fresh start gets a moment before the next question
+    game.setbacks = {};
+    if (game.quizTimer < 4) game.quizTimer = 4;
     pac.x = centerOf(13) + TILE / 2;   // starts on the seam, like the original
     pac.y = centerOf(23);
     pac.dir = 'left';
@@ -623,6 +625,7 @@
     if (game.frightTimer > 0) f += 0.06;
     if (powerActive('chili')) f *= 1.45;
     if (eventActive('speed')) f *= 1.3;
+    if (setbackActive('sluggish')) f *= 0.88;
     f *= flavour().pac;
     // heavy going on this map's hazard tiles
     if (inHazard(tileOf(pac.x), tileOf(pac.y)) && !powerActive('chili')) f *= 0.8;
@@ -640,6 +643,7 @@
     f *= diff().ghost;
     if (eventActive('fast')) f *= 1.25;
     if (eventActive('speed')) f *= 1.15;
+    f *= huntedFactor();
     f *= flavour().ghost;
     // slow crawl through the tunnel
     const ty = tileOf(g.y);
@@ -888,6 +892,7 @@
 
   /** Every pick-up extends the chain; ten in a row raises the multiplier. */
   function bumpCombo(x, y) {
+    if (setbackActive('butterfingers')) return;    // the chain will not build
     game.combo++;
     game.comboTimer = COMBO_WINDOW;
     if (game.combo > game.comboBest) game.comboBest = game.combo;
@@ -1370,50 +1375,78 @@
 
   function powerActive(key) { return (game.active[key] || 0) > 0; }
 
-  /** A free floor tile a sensible distance from the burger. */
-  function randomFloorTile(minTilesFromPac) {
-    const ptx = tileOf(pac.x), pty = tileOf(pac.y);
-    for (let tries = 0; tries < 200; tries++) {
-      const x = 1 + Math.floor(Math.random() * (Maze.COLS - 2));
-      const y = 1 + Math.floor(Math.random() * (Maze.ROWS - 2));
-      const t = game.grid[y][x];
-      if (t !== T.PELLET && t !== T.FLOOR) continue;
-      if (y >= 11 && y <= 17 && x >= 9 && x <= 18) continue;      // not in the house
-      if (distance(x, y, ptx, pty) < (minTilesFromPac || 5)) continue;
-      if (game.powerups.some(function (p) { return p.tx === x && p.ty === y; })) continue;
-      return { x: x, y: y };
-    }
-    return null;
+  /* ------------------------------------------------------------------ */
+  /* THE QUESTION CLOCK                                                  */
+  /* ------------------------------------------------------------------ */
+  /* Power-ups are not scattered around the maze any more. A forensics
+     question comes up every 20 seconds and that is the only way to get one.
+     Getting it wrong costs you a short setback instead.
+
+     Both sides are deliberately gentle. A power-up is the same one you used
+     to find on the floor, and a setback is a few seconds of being slightly
+     worse off - never something that takes a life on its own. */
+  const QUIZ_EVERY = 20;           // seconds between questions
+  const QUIZ_FIRST = 8;            // the first one comes sooner, to explain itself
+
+  const SETBACKS = [
+    { key: 'sluggish', name: 'SLUGGISH', sub: 'YOU ARE SLOWER', color: '#ff9a3c', time: 6 },
+    { key: 'hunted', name: 'HUNTED', sub: 'THEY ARE QUICKER', color: '#ff5a5a', time: 5 },
+    { key: 'blinkers', name: 'BLINKERS', sub: 'HARD TO SEE', color: '#9fe4ff', time: 6 },
+    { key: 'butterfingers', name: 'BUTTERFINGERS', sub: 'NO COMBO BUILDING', color: '#c6a6ff', time: 8 }
+  ];
+
+  function setbackActive(key) { return (game.setbacks[key] || 0) > 0; }
+
+  /** How much quicker the enemies get while HUNTED, eased off on Extreme
+      where they already outrun the burger. */
+  function huntedFactor() {
+    if (!setbackActive('hunted')) return 1;
+    return game.difficulty === 'extreme' ? 1.05
+      : (game.difficulty === 'hard' ? 1.08 : 1.10);
   }
 
-  function spawnPowerUp() {
-    const spot = randomFloorTile(6);
-    if (!spot) return;
-    const def = POWERUPS[Math.floor(Math.random() * POWERUPS.length)];
-    game.powerups.push({
-      key: def.key, tx: spot.x, ty: spot.y,
-      x: centerOf(spot.x), y: centerOf(spot.y), life: 13
+  function startSetback(def) {
+    game.setbacks[def.key] = def.time;
+    FX.announce(def.name, def.sub, def.color, 1.6);
+    FX.flash(def.color, 0.16, 0.22);
+    if (def.key === 'butterfingers') breakCombo();
+    Sound.wrong();
+  }
+
+  function updateSetbacks(dt) {
+    Object.keys(game.setbacks).forEach(function (key) {
+      game.setbacks[key] -= dt;
+      if (game.setbacks[key] <= 0) delete game.setbacks[key];
     });
-    FX.ring(centerOf(spot.x), centerOf(spot.y), def.color, TILE * 1.6, 0.5, 2);
+  }
+
+  /** The question itself: right answer buys a power-up, wrong one a setback. */
+  function askQuestion() {
+    if (!window.Quiz || Quiz.active()) return;
+    clearHeld();                   // nobody holds the stick while reading
+    Quiz.ask(function (correct) {
+      if (correct) {
+        const def = POWERUPS[Math.floor(Math.random() * POWERUPS.length)];
+        applyPowerUp(def.key, def);
+        FX.announce(def.name, def.sub, def.color, 1.6);
+        addScore(400, 'quiz', { x: pac.x, y: pac.y, color: '#7ee07a', noCombo: true });
+      } else {
+        startSetback(SETBACKS[Math.floor(Math.random() * SETBACKS.length)]);
+      }
+      game.quizTimer = QUIZ_EVERY;
+    });
+  }
+
+  function updateQuizClock(dt) {
+    if (!window.Quiz || game.bonusRound) return;
+    if (Quiz.active()) return;                   // the clock waits for an answer
+    game.quizTimer -= dt;
+    if (game.quizTimer <= 0) askQuestion();
   }
 
   function updatePowerUps(dt) {
-    // spawn timer, paced by difficulty
-    game.powerTimer -= dt;
-    if (game.powerTimer <= 0) {
-      game.powerTimer = diff().powerEvery * (0.75 + Math.random() * 0.6);
-      if (game.powerups.length < diff().powerMax && !game.bonusRound) spawnPowerUp();
-    }
-
-    for (let i = game.powerups.length - 1; i >= 0; i--) {
-      const p = game.powerups[i];
-      p.life -= dt;
-      if (p.life <= 0) { game.powerups.splice(i, 1); continue; }
-      if (distance(pac.x, pac.y, p.x, p.y) < TILE * 0.8) {
-        game.powerups.splice(i, 1);
-        collectPowerUp(p);
-      }
-    }
+    // nothing spawns on the floor any more - the question clock is the only
+    // way a power-up arrives, so this just ages out what is running
 
     // tick down whatever is running
     Object.keys(game.active).forEach(function (key) {
@@ -1421,35 +1454,6 @@
       game.active[key] -= dt;
       if (game.active[key] <= 0) delete game.active[key];
     });
-  }
-
-  function collectPowerUp(p) {
-    const def = powerDef(p.key);
-    game.pickups++;
-    bumpCombo(p.x, p.y);
-    addScore(250, 'powerups', { x: p.x, y: p.y, color: def.color });
-    FX.burst(p.x, p.y, [def.color, '#ffffff'], { count: 18, speed: 130, size: 3 });
-    FX.ring(p.x, p.y, def.color, TILE * 3, 0.45, 3);
-    FX.float(p.x, p.y - TILE * 1.4, def.name, def.color, { size: 8, life: 1.4 });
-    Sound.powerUp();
-
-    // the pick-up scores straight away, but the effect is held behind a
-    // forensics question - answer it and the power-up fires
-    if (window.Quiz && Quiz.ready()) {
-      FX.float(p.x, p.y - TILE * 2.2, 'LOCKED', '#7ef0ff', { size: 7, life: 1.2 });
-      clearHeld();            // nobody holds the stick while reading a question
-      Quiz.ask(function (correct) {
-        if (correct) {
-          applyPowerUp(p.key, def);
-          addScore(500, 'quiz', { x: pac.x, y: pac.y, color: '#7ee07a' });
-        } else {
-          FX.float(pac.x, pac.y - TILE * 1.6, 'LOST', '#ff5a5a', { size: 8, life: 1.4 });
-          FX.flash('#ff5a5a', 0.18, 0.25);
-        }
-      });
-      return;
-    }
-    applyPowerUp(p.key, def);
   }
 
   function applyPowerUp(key, def) {
@@ -1600,6 +1604,7 @@
    * any tile something is standing on.
    */
   function openShiftPassages() {
+    closeShiftPassages();          // anything still pending gets sealed first
     game.shiftTiles = [];
     for (let tries = 0; tries < 300 && game.shiftTiles.length < 9; tries++) {
       const x = 2 + Math.floor(Math.random() * (Maze.COLS - 4));
@@ -1620,13 +1625,21 @@
     if (game.shiftTiles.length) rebuildBoard();
   }
 
+  /**
+   * Seal the temporary passages again. A tile is left open if anything is
+   * near enough to be walking into it: testing the exact tile an entity's
+   * centre sits in is not enough, because one straddling the boundary would
+   * have the tile ahead sealed around it and end up inside a wall.
+   */
   function closeShiftPassages() {
     if (!game.shiftTiles || !game.shiftTiles.length) return;
-    const occupied = [pac].concat(ghosts).map(function (e) {
-      return tileOf(e.x) + ',' + tileOf(e.y);
-    });
+    const movers = [pac].concat(ghosts);
     game.shiftTiles = game.shiftTiles.filter(function (t) {
-      if (occupied.indexOf(t.x + ',' + t.y) >= 0) return true;     // try again later
+      const busy = movers.some(function (e) {
+        return Math.abs(e.x - centerOf(t.x)) < TILE * 1.5 &&
+          Math.abs(e.y - centerOf(t.y)) < TILE * 1.5;
+      });
+      if (busy) return true;                                       // try again later
       if (game.grid[t.y][t.x] === T.FLOOR) game.grid[t.y][t.x] = T.WALL;
       return false;
     });
@@ -2157,12 +2170,6 @@
     if (game.state !== STATE.PLAY && game.state !== STATE.READY
       && game.state !== STATE.DYING) return;
     const pulse = 0.5 + 0.5 * Math.sin(game.frame * 0.16);
-    game.powerups.forEach(function (p) {
-      const bob = Math.sin(game.frame * 0.11 + p.tx) * TILE * 0.09;
-      // blink out as it is about to expire
-      if (p.life < 3 && Math.floor(p.life * 6) % 2 === 0) return;
-      Sprites.drawPowerUp(ctx, p.key, p.x, p.y + bob, TILE * 1.15, pulse);
-    });
   }
 
   function drawBoss() {
@@ -2204,7 +2211,7 @@
 
   /** The LOW LIGHT event: darkness with a lamp around the burger. */
   function drawLowLight() {
-    if (!eventActive('dark') || game.state !== STATE.PLAY) return;
+    if ((!eventActive('dark') && !setbackActive('blinkers')) || game.state !== STATE.PLAY) return;
     const r = TILE * 5.2;
     const g = ctx.createRadialGradient(pac.x, pac.y, r * 0.35, pac.x, pac.y, r);
     g.addColorStop(0, 'rgba(0,0,0,0)');
@@ -2274,6 +2281,41 @@
       }
       ctx.restore();
     });
+
+    // --- setbacks, under the power-ups ---
+    Object.keys(game.setbacks).forEach(function (key, i) {
+      let def = null;
+      for (let k = 0; k < SETBACKS.length; k++) if (SETBACKS[k].key === key) def = SETBACKS[k];
+      if (!def) return;
+      const bw = TILE * 5.2, bh = TILE * 0.72;
+      const x = W - TILE * 0.55 - bw;
+      const y = TILE * 2.5 + i * (bh + 5);
+      ctx.save();
+      ctx.fillStyle = 'rgba(0,0,0,0.62)';
+      ctx.fillRect(x, y, bw, bh);
+      ctx.textAlign = 'left';
+      ctx.font = 'bold ' + Math.round(6 * UNIT) + 'px "Press Start 2P", monospace';
+      ctx.fillStyle = def.color;
+      ctx.fillText(def.name, x + 5, y + bh * 0.62);
+      const k2 = Math.max(0, game.setbacks[key] / def.time);
+      ctx.fillStyle = 'rgba(255,255,255,0.22)';
+      ctx.fillRect(x, y + bh - 3, bw, 3);
+      ctx.fillStyle = def.color;
+      ctx.fillRect(x, y + bh - 3, bw * k2, 3);
+      ctx.restore();
+    });
+
+    // --- the countdown to the next question, bottom left ---
+    if (window.Quiz && !game.bonusRound && !Quiz.active()) {
+      const left = Math.max(0, game.quizTimer);
+      const soon = left <= 5;
+      ctx.save();
+      ctx.textAlign = 'left';
+      ctx.font = 'bold ' + Math.round(6 * UNIT) + 'px "Press Start 2P", monospace';
+      ctx.fillStyle = soon ? '#ffd447' : 'rgba(180, 210, 205, 0.72)';
+      ctx.fillText('QUESTION IN ' + Math.ceil(left), TILE * 0.8, H - TILE * 0.6);
+      ctx.restore();
+    }
 
     // --- the running event, centre top ---
     if (game.event) {
@@ -2444,6 +2486,8 @@
           updateEvents(dt);
         }
         updatePowerUps(dt);
+        updateSetbacks(dt);
+        updateQuizClock(dt);
         updateBonusRound(dt);
         checkSecrets();
         if (game.loot) {

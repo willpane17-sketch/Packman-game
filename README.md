@@ -6,7 +6,7 @@ new cast:
 | Classic          | This game                                              |
 | ---------------- | ------------------------------------------------------ |
 | Pac-Man          | a pixel **burger** (sesame bun, cheese, patty, olive)   |
-| The four ghosts  | **Tomato Heads** in Tilted Towers, **Ravens** in Dusty Divot — each map has its own skin |
+| The four ghosts  | a different character per map — **Tomato Head**, **Raven**, **Jonesy** and **Cuddle Team Leader** |
 | The blue maze    | two Fortnite maps — **Tilted Towers** and **Dusty Divot** — each with its own layout and theme |
 | A black screen   | the **aerial map** behind the board: the town and its river, or the meteor crater and its blast streaks |
 | Dots / power pellets | **mini shields** / **chug jugs**                    |
@@ -104,7 +104,7 @@ change, and each map keeps its own high scores.
 | Walls | concrete towers | banks of earth | timber jetties | houses and hedges |
 | Floor | asphalt | scorched dirt | shallow water | suburban streets |
 | The middle | the ghost house | the research site | the house on the water | the football pitch |
-| Enemy skin | Tomato Head | Raven | Tomato Head | Raven |
+| Enemy skin | Tomato Head | Raven | Jonesy | Cuddle Team Leader |
 | Hazard | none | dust (slower) | shallows drag you | hedges hide quicker enemies |
 
 Every layout is validated at build time: 28 x 31, every pick-up reachable,
@@ -118,8 +118,16 @@ Beyond the arcade rules, a run now carries:
 
 - **Combos** — consecutive pick-ups build a chain; every ten raises the
   multiplier, to x8. Getting caught breaks it.
-- **Power-ups** — chili pepper (speed), golden burger (double points), shield
-  (survive one hit), freeze, shockwave (clears nearby enemies) and magnet.
+- **Power-ups, earned not found** — nothing is scattered on the floor. A
+  question comes up every 20 seconds and that is the only way to get one:
+  chili pepper (speed), golden burger (double points), shield (survive one
+  hit), freeze, shockwave (clears nearby enemies) or magnet.
+- **Setbacks** — get the question wrong and you carry one for a few seconds
+  instead: SLUGGISH (12% slower), HUNTED (5-10% quicker enemies, eased off on
+  Extreme where they already outrun you), BLINKERS (low light) or
+  BUTTERFINGERS (the combo chain will not build). Deliberately mild - a wrong
+  answer should cost you, not kill you, and none of them can take a life on
+  its own. A setback is cleared if you lose a life anyway.
 - **Bosses** — every fourth board spawns a crowned enemy with three hit points.
   It is only vulnerable while a chug jug is running.
 - **Random events** — double score, faster enemies, low light, bonus pellets,
@@ -130,10 +138,10 @@ Beyond the arcade rules, a run now carries:
 - **Bonus rounds** — every third board, the enemies leave and you have 22
   seconds to sweep up as much as you can.
 - **Achievements** — eight of them, tracked across runs and shown on the menu.
-- **Forensics questions** — a power-up scores the moment you touch it but does
-  nothing until you answer. The game freezes, a question comes up, and a right
-  answer unlocks the power-up and pays 500; a wrong one loses it and shows you
-  why. 45 questions across ACPO principles, order of volatility, acquisition
+- **Forensics questions** — one every 20 seconds, and the only source of
+  power-ups. The game freezes while the card is up, so nobody dies reading it.
+  Right answer: a power-up and 400 points. Wrong answer: a short setback, and
+  it shows you what the answer should have been. 45 questions across ACPO principles, order of volatility, acquisition
   and imaging, hashing and integrity, chain of custody, disk and Windows
   artefacts, anti-forensics, mobile and network forensics, analysis, reporting
   and the relevant UK law (CMA 1990, PACE 1984, RIPA 2000, DPA 2018). Options
@@ -150,13 +158,12 @@ own high score.
 | | Easy | Hard | Extreme |
 | --- | --- | --- | --- |
 | Boards to win | 5 | 8 | 3 |
-| Power-up every | 9s (3 on board) | 16s (2) | 26s (1) |
 | Random event every | 26s | 20s | 13s |
 | Pinky cuts ahead | 4 tiles | 5 | 6 |
 | Clyde loses nerve within | 8 tiles | 6 | 3 |
 | Lives | 5 | 3 | 1 |
 | Burger speed | 197 px/s | 188 px/s | 189 px/s |
-| Jonesy speed | 138 px/s | 173 px/s | **208 px/s — faster than you** |
+| Enemy speed | 138 px/s | 173 px/s | **208 px/s — faster than you** |
 | Shield potion | 14s, never under 7s | arcade table (6s, falling) | ~2.7s, falls away fast |
 | Ghosts out of the house | late (doubled dot counters) | arcade counters | all four immediately |
 | Scatter (safe) phases | 1.7x longer | arcade | barely any |
@@ -176,7 +183,7 @@ progress.
 The maze is the original 28 × 31 arcade layout (all 244 pick-ups), and the rules
 follow the arcade closely:
 
-- **Four distinct Tomato Head personalities.** Blinky chases directly, Pinky aims four
+- **Four distinct enemy personalities.** Blinky chases directly, Pinky aims four
   tiles ahead of the burger, Inky uses the Blinky-through-burger vector, and
   Clyde chases until he gets within eight tiles then bolts for his corner. The
   original's "look up = also look left" targeting quirk is reproduced.
