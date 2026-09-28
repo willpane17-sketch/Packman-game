@@ -242,7 +242,7 @@
     comboBest: 0,
     bestMult: 1,
     // --- run tallies, shown on the end screens ---
-    tally: { pellets: 0, enemies: 0, powerups: 0, combo: 0, boss: 0, secret: 0, level: 0 },
+    tally: { pellets: 0, enemies: 0, powerups: 0, combo: 0, boss: 0, secret: 0, level: 0, quiz: 0 },
     pickups: 0,
     secrets: 0,
     bosses: 0,
@@ -516,6 +516,7 @@
   }
 
   function startGame() {
+    if (window.Quiz) Quiz.reset();
     game.score = 0;
     game.level = 1;
     game.lives = diff().lives;
@@ -528,7 +529,7 @@
     game.secrets = 0;
     game.bosses = 0;
     game.newHigh = false;
-    game.tally = { pellets: 0, enemies: 0, powerups: 0, combo: 0, boss: 0, secret: 0, level: 0 };
+    game.tally = { pellets: 0, enemies: 0, powerups: 0, combo: 0, boss: 0, secret: 0, level: 0, quiz: 0 };
     game.extraAwarded = false;
     game.popups = [];
     loadLevel(true);
@@ -1274,6 +1275,13 @@
         ['SECRETS FOUND', String(game.secrets)],
         ['BOARDS CLEARED', String(Math.max(0, game.level - 1))]
       ];
+      if (window.Quiz) {
+        const qs = Quiz.score();
+        if (qs.asked) {
+          rows.push(['FORENSICS', qs.right + '/' + qs.asked + '  ('
+            + Math.round(100 * qs.right / qs.asked) + '%)']);
+        }
+      }
       const boxY = H * 0.36;
       const rowH = H * 0.058;
       ctx.save();
@@ -1409,17 +1417,38 @@
     FX.float(p.x, p.y - TILE * 1.4, def.name, def.color, { size: 8, life: 1.4 });
     Sound.powerUp();
 
-    if (p.key === 'shock') {
+    // the pick-up scores straight away, but the effect is held behind a
+    // forensics question - answer it and the power-up fires
+    if (window.Quiz && Quiz.ready()) {
+      FX.float(p.x, p.y - TILE * 2.2, 'LOCKED', '#7ef0ff', { size: 7, life: 1.2 });
+      clearHeld();            // nobody holds the stick while reading a question
+      Quiz.ask(function (correct) {
+        if (correct) {
+          applyPowerUp(p.key, def);
+          addScore(500, 'quiz', { x: pac.x, y: pac.y, color: '#7ee07a' });
+        } else {
+          FX.float(pac.x, pac.y - TILE * 1.6, 'LOST', '#ff5a5a', { size: 8, life: 1.4 });
+          FX.flash('#ff5a5a', 0.18, 0.25);
+        }
+      });
+      return;
+    }
+    applyPowerUp(p.key, def);
+  }
+
+  function applyPowerUp(key, def) {
+    def = def || powerDef(key);
+    if (key === 'shock') {
       triggerShockwave();
       return;
     }
-    if (p.key === 'shield') {
+    if (key === 'shield') {
       game.active.shield = 1;                            // a flag, not a timer
       Sound.shield();
       return;
     }
-    game.active[p.key] = def.time;
-    if (p.key === 'freeze') {
+    game.active[key] = def.time;
+    if (key === 'freeze') {
       Sound.freeze();
       FX.flash('#9fe4ff', 0.25, 0.3);
     }
@@ -2360,12 +2389,15 @@
     if (dt > 0.05) dt = 0.05;      // clamp after a tab switch
     game.frame++;
 
-    if (!game.paused) {
+    const quizUp = !!(window.Quiz && Quiz.active());
+    if (window.Quiz) Quiz.tick(dt);
+    if (!game.paused && !quizUp) {
       update(dt);
       FX.update(dt);
       Achievements.update(dt);
     }
     draw(dt);
+    if (window.Quiz) Quiz.draw(ctx, W, H, UNIT);
     pollPads();
     requestAnimationFrame(frame);
   }
@@ -2482,7 +2514,19 @@
   const MODE_KEYS = { Digit1: 'easy', Digit2: 'hard', Digit3: 'extreme',
     Numpad1: 'easy', Numpad2: 'hard', Numpad3: 'extreme' };
 
+  const QUIZ_PICK = { Digit1: 0, Digit2: 1, Digit3: 2, Digit4: 3,
+    Numpad1: 0, Numpad2: 1, Numpad3: 2, Numpad4: 3 };
+
   window.addEventListener('keydown', function (e) {
+    // a question owns the keyboard while it is up
+    if (window.Quiz && Quiz.active()) {
+      e.preventDefault();
+      if (e.code === 'ArrowUp' || e.code === 'KeyW') Quiz.move(-1);
+      else if (e.code === 'ArrowDown' || e.code === 'KeyS') Quiz.move(1);
+      else if (QUIZ_PICK[e.code] !== undefined) Quiz.pick(QUIZ_PICK[e.code]);
+      else if (e.code === 'Enter' || e.code === 'Space') Quiz.confirm();
+      return;
+    }
     if (MODE_KEYS[e.code] && modeSelectable()) {
       e.preventDefault();
       setDifficulty(MODE_KEYS[e.code]);
@@ -2519,6 +2563,7 @@
   window.addEventListener('keyup', function (e) {
     if (KEY_DIRS[e.code]) held[KEY_DIRS[e.code]] = false;
   });
+
 
   // alt-tabbing away swallows the release, which would wedge the stick on
   window.addEventListener('blur', clearHeld);

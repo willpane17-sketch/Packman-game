@@ -118,6 +118,15 @@ Beyond the arcade rules, a run now carries:
 - **Bonus rounds** — every third board, the enemies leave and you have 22
   seconds to sweep up as much as you can.
 - **Achievements** — eight of them, tracked across runs and shown on the menu.
+- **Forensics questions** — a power-up scores the moment you touch it but does
+  nothing until you answer. The game freezes, a question comes up, and a right
+  answer unlocks the power-up and pays 500; a wrong one loses it and shows you
+  why. 45 questions across ACPO principles, order of volatility, acquisition
+  and imaging, hashing and integrity, chain of custody, disk and Windows
+  artefacts, anti-forensics, mobile and network forensics, analysis, reporting
+  and the relevant UK law (CMA 1990, PACE 1984, RIPA 2000, DPA 2018). Options
+  are shuffled each time, so the answer is never in a predictable slot, and
+  the run's score is shown at the end.
 
 ## Difficulty
 
@@ -208,6 +217,7 @@ js/sprites.js       all pixel art: burger, enemies, shields, chug jugs, llama
 js/render.js        paints a board to an offscreen canvas, themed per map
 js/fx.js            particles, screen shake, floating score, announcements
 js/achievements.js  the eight achievements and their toasts
+js/quiz.js          the digital forensics question bank and its card
 js/audio.js         WebAudio sound effects
 js/game.js          game loop, movement, enemy AI, combos, power-ups, scoring
 ```
