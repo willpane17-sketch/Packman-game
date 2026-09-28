@@ -1,0 +1,9 @@
+# the Electron runtime and anything it builds
+node_modules/
+dist/
+package-lock.json
+
+# editor and OS noise
+.DS_Store
+Thumbs.db
+.vscode/

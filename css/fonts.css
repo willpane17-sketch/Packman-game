@@ -1,0 +1,9 @@
+/* The arcade face ships with the game, so it looks right offline and in the
+   desktop app. No network, no fallback flicker. */
+@font-face {
+  font-family: 'Press Start 2P';
+  src: url('../fonts/PressStart2P.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: block;
+}

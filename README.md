@@ -18,15 +18,51 @@ board is drawn at full resolution (the game stays pixelated; the world it sits
 in does not), all at load time, so there is **no build step**. The only image file in the project
 is the Victory Royale banner in `assets/` (Epic Games artwork, dropped in as-is
 for the win screen; the game falls back to a drawn banner if it is missing).
-Open `index.html` and play.
+The arcade font is bundled in `fonts/`, so it looks right with no internet.
 
 ## Play it
 
+It runs as a desktop app in its own window - no address bar, no tabs, no
+browser. Three ways in, easiest first:
+
+**1. Double-click it** (nothing to install)
+
+| Your machine | Double-click |
+| --- | --- |
+| Windows | `Burger Munch.bat` |
+| macOS / Linux | `burger-munch.sh` |
+
+These borrow the browser engine already on the machine and run it in app mode,
+so you get a bare game window with no browser around it.
+
+**2. Run it from a terminal** (needs [Node.js](https://nodejs.org))
+
 ```bash
-# any static server works, or just open the file directly
+npm install      # once, downloads the Electron runtime
+npm start        # opens the game window
+```
+
+**3. Build a standalone app** you can keep on the desktop or hand to someone
+
+```bash
+npm run build            # Windows -> dist/Burger Munch 1.0.0.exe (portable, no installer)
+npm run build:installer  # Windows -> a normal setup .exe
+npm run build:mac        # macOS   -> dist/*.dmg
+npm run build:linux      # Linux   -> dist/*.AppImage
+```
+
+The result in `dist/` is a single file that runs on its own - the person you
+give it to needs neither Node nor a browser.
+
+<details>
+<summary>Still want it in a browser tab?</summary>
+
+```bash
 python3 -m http.server 8000
 # then browse to http://localhost:8000
 ```
+
+</details>
 
 | Control | Action |
 | --- | --- |
@@ -34,7 +70,7 @@ python3 -m http.server 8000
 | Enter / Space | Start, restart, pause |
 | P | Pause |
 | M | Sound on / off |
-| F | Full screen |
+| F, or F11 in the app | Full screen |
 | 1 / 2 / 3 | Easy / Hard / Extreme (on the menus) |
 | Swipe or on-screen D-pad | Move (touch devices) |
 
@@ -145,16 +181,24 @@ follow the arcade closely:
 ## Layout
 
 ```
-index.html        page shell and HUD
-css/style.css     styling, responsive + touch layout
-assets/           the Victory Royale banner image
-js/backdrop.js    the aerial map of Tilted Towers behind the page
-js/layout.js      sizes the board to fill the window without clipping the HUD
-js/maze.js        the 28x31 tile map and tile helpers
-js/sprites.js     all pixel art: burger, Jonesys, coins, potions, loot
-js/render.js      paints the Tilted Towers board to an offscreen canvas
-js/audio.js       WebAudio sound effects
-js/game.js        game loop, movement, ghost AI, scoring, input
+main.js             the desktop app shell (Electron): the window the game lives in
+package.json        app metadata, `npm start`, and the build targets
+Burger Munch.bat    Windows launcher, nothing to install
+burger-munch.sh     macOS / Linux launcher, nothing to install
+index.html          page shell and HUD
+css/style.css       styling, responsive + touch layout
+css/fonts.css       the bundled arcade font
+fonts/              PressStart2P.ttf, so the app needs no internet
+assets/             the Victory Royale banner and the app icon
+js/backdrop.js      the aerial map behind the page
+js/layout.js        sizes the board to fill the window without clipping the HUD
+js/maze.js          the four 28x31 tile maps and tile helpers
+js/sprites.js       all pixel art: burger, enemies, shields, chug jugs, llama
+js/render.js        paints a board to an offscreen canvas, themed per map
+js/fx.js            particles, screen shake, floating score, announcements
+js/achievements.js  the eight achievements and their toasts
+js/audio.js         WebAudio sound effects
+js/game.js          game loop, movement, enemy AI, combos, power-ups, scoring
 ```
 
 `window.__game` is exposed in the console for poking at state while debugging.
