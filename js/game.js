@@ -332,12 +332,15 @@
    * Grid-locked movement. Moves `dist` pixels in 1px steps, letting `chooser`
    * pick a new direction every time the entity is centred on a tile.
    * A chooser may return false to stop the entity on that tile.
+   * `onStep` runs before every 1px advance, which is where the burger gets
+   * to corner - checking once a frame would miss the window on a slow frame.
    */
-  function step(e, dist, chooser) {
+  function step(e, dist, chooser, onStep) {
     let remaining = dist;
     let guard = 0;
     while (remaining > 0.0001 && guard++ < 4096) {
       const s = Math.min(remaining, 1);
+      if (onStep) onStep(e);
       const tx = tileOf(e.x), ty = tileOf(e.y);
       const cx = centerOf(tx), cy = centerOf(ty);
       if (Math.abs(e.x - cx) < 0.75 && Math.abs(e.y - cy) < 0.75) {
@@ -444,6 +447,7 @@
     pac.y = centerOf(23);
     pac.dir = 'left';
     pac.next = 'left';
+    pac.nextTtl = 0;
     pac.moving = false;
     pac.mouth = 0;
 
@@ -811,14 +815,50 @@
     }
   }
 
+  // How far either side of a tile centre a turn is still accepted. Without
+  // this the burger could only turn on the exact frame it sat on a centre -
+  // at ~200px/s that is a window about 3px wide, so an ordinary human press
+  // sailed straight past the junction and fired at some later one instead.
+  // Turning early cuts the corner, which is what the arcade does too.
+  const CORNER_EARLY = 10;         // px before the centre
+  const CORNER_LATE = 8;           // px after it
+  const NEXT_TTL = 1.0;            // seconds a queued turn stays live
+
+  /**
+   * Take a perpendicular turn when close enough to a tile centre, snapping
+   * onto the new axis. Runs every pixel of travel, so no press is missed.
+   */
+  function corner(e) {
+    const nd = DIRS[e.next];
+    const d = DIRS[e.dir];
+    if (!nd || !d || e.next === e.dir) return;
+    // reversals already turn anywhere; only perpendicular turns corner
+    if (nd.x * d.x !== 0 || nd.y * d.y !== 0) return;
+    const tx = tileOf(e.x), ty = tileOf(e.y);
+    if (isWallFor(tx + nd.x, ty + nd.y, null)) return;
+    const cx = centerOf(tx), cy = centerOf(ty);
+    const along = d.x !== 0 ? (e.x - cx) * d.x : (e.y - cy) * d.y;
+    if (along > CORNER_LATE || along < -CORNER_EARLY) return;
+    e.x = cx;                      // at most 10px, and always inside this tile
+    e.y = cy;
+    e.dir = e.next;
+    e.moving = true;
+  }
+
   function updatePac(dt) {
+    // a turn nobody could take stops being pending, so it cannot fire by
+    // surprise several junctions later
+    if (pac.next !== pac.dir) {
+      pac.nextTtl -= dt;
+      if (pac.nextTtl <= 0) pac.next = pac.dir;
+    }
     // an instant U-turn is allowed anywhere, not just on a tile centre
     if (pac.next === OPPOSITE[pac.dir]) {
       const tx = tileOf(pac.x), ty = tileOf(pac.y);
       const d = DIRS[pac.next];
       if (!isWallFor(tx + d.x, ty + d.y, null)) pac.dir = pac.next;
     }
-    step(pac, pacSpeed() * dt, choosePacDir);
+    step(pac, pacSpeed() * dt, choosePacDir, corner);
     if (pac.moving) pac.mouth = (pac.mouth + dt * 11) % (Math.PI * 2);
 
     eatTile();
@@ -2393,6 +2433,7 @@
 
   function setDir(dir) {
     pac.next = dir;
+    pac.nextTtl = NEXT_TTL;
     Sound.unlock();
   }
 

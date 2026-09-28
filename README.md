@@ -167,6 +167,12 @@ follow the arcade closely:
   100 – 1000 points depending on the level.
 - **A real ending.** Clearing the last board on a mode wins the run outright
   rather than looping forever.
+- **Cornering.** A turn is accepted within 10px before a junction and 8px
+  after it, not only on the single frame the burger sits dead-centre. At
+  200px/s that centre lasts about 3px, so without it an ordinary press missed
+  the turn and fired at the next junction instead - the burger would carry on
+  and swing down some corridor three tiles later. A queued turn that nothing
+  can act on also expires after a second, so it cannot go off by surprise.
 - **The map behind the board**, drawn procedurally and repainted on resize, so
   the city block reads as the middle of Tilted Towers rather than a board on a
   blank page.
