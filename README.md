@@ -45,19 +45,38 @@ button in the HUD. Both are the same 28 x 31 arcade grid - so the ghost house,
 the tunnel and the burger's start tile line up - but the layout and the theme
 change, and each map keeps its own high scores.
 
-| | Tilted Towers | Dusty Divot |
-| --- | --- | --- |
-| Pick-ups | 244 | 298 |
-| Walls | concrete towers with lit windows | banks of earth thrown up by the impact |
-| Floor | asphalt with lane markings | scorched dirt, blast streaks radiating from the centre |
-| The middle | the ghost house | the research site: prefab buildings and concrete pads |
-| Ghost skin | Tomato Head | Raven |
-| Around it | grass and the river to the east | the crater bowl, ejecta past the rim, trees beyond |
+| | Tilted Towers | Dusty Divot | Loot Lake | Pleasant Park |
+| --- | --- | --- | --- | --- |
+| Pick-ups | 244 | 298 | 292 | 296 |
+| Walls | concrete towers | banks of earth | timber jetties | houses and hedges |
+| Floor | asphalt | scorched dirt | shallow water | suburban streets |
+| The middle | the ghost house | the research site | the house on the water | the football pitch |
+| Enemy skin | Tomato Head | Raven | Tomato Head | Raven |
+| Hazard | none | dust (slower) | shallows drag you | hedges hide quicker enemies |
 
 Every layout is validated at build time: 28 x 31, every pick-up reachable,
 exactly four power pellets, no dead-end corridors, no 2x2 open blocks, and the
 tiles the engine hardcodes (the ghost door, the tunnel mouths, the burger's
 start) all where they should be.
+
+## What's in a run
+
+Beyond the arcade rules, a run now carries:
+
+- **Combos** — consecutive pick-ups build a chain; every ten raises the
+  multiplier, to x8. Getting caught breaks it.
+- **Power-ups** — chili pepper (speed), golden burger (double points), shield
+  (survive one hit), freeze, shockwave (clears nearby enemies) and magnet.
+- **Bosses** — every fourth board spawns a crowned enemy with three hit points.
+  It is only vulnerable while a chug jug is running.
+- **Random events** — double score, faster enemies, low light, bonus pellets,
+  maze shift (new passages open) and speed round, each announced across the
+  screen.
+- **Secret vaults** — two hidden rooms per board, behind walls only the burger
+  can pass. Worth 2500 and an achievement.
+- **Bonus rounds** — every third board, the enemies leave and you have 22
+  seconds to sweep up as much as you can.
+- **Achievements** — eight of them, tracked across runs and shown on the menu.
 
 ## Difficulty
 
@@ -69,6 +88,10 @@ own high score.
 | | Easy | Hard | Extreme |
 | --- | --- | --- | --- |
 | Boards to win | 5 | 8 | 3 |
+| Power-up every | 9s (3 on board) | 16s (2) | 26s (1) |
+| Random event every | 26s | 20s | 13s |
+| Pinky cuts ahead | 4 tiles | 5 | 6 |
+| Clyde loses nerve within | 8 tiles | 6 | 3 |
 | Lives | 5 | 3 | 1 |
 | Burger speed | 197 px/s | 188 px/s | 189 px/s |
 | Jonesy speed | 138 px/s | 173 px/s | **208 px/s — faster than you** |

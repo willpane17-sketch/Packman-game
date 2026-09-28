@@ -365,6 +365,161 @@
     }
   }
 
+
+  /* ------------------------------------------------------------------ */
+  /* LOOT LAKE                                                           */
+  /* Timber jetties over shallow water, with the shore around the edge.  */
+  /* ------------------------------------------------------------------ */
+  function drawLakeFloorTile(ctx, grid, x, y, ts, gx, gy) {
+    // deeper towards the middle of the map, shallower at the rim
+    const dx = (gx + 0.5 - 13.5) / 13.5;
+    const dy = (gy + 0.5 - 15) / 15;
+    const depth = Math.min(1, Math.sqrt(dx * dx + dy * dy));
+    const deep = ['#123c58', '#0f3450', '#16455f', '#0d2c44'];
+    const shallow = ['#1d6a85', '#237a95', '#18607a'];
+    const pool = depth < 0.55 ? deep : shallow;
+    ctx.fillStyle = pool[Math.floor(hash(gx, gy, 5) * pool.length)];
+    ctx.fillRect(x, y, ts, ts);
+
+    // ripples and caustics
+    const r = hash(gx, gy, 23);
+    if (r > 0.72) {
+      ctx.fillStyle = 'rgba(180,230,255,0.16)';
+      ctx.fillRect(x + ts * 0.15, y + ts * (0.3 + r * 0.3), ts * 0.7, 1.5);
+    }
+    if (hash(gx, gy, 24) > 0.88) {
+      ctx.fillStyle = 'rgba(200,240,255,0.22)';
+      ctx.fillRect(x + ts * 0.3, y + ts * 0.45, ts * 0.4, 1.5);
+    }
+    // a submerged rock here and there
+    if (hash(gx, gy, 61) > 0.955) {
+      ctx.fillStyle = 'rgba(40,60,70,0.7)';
+      ctx.fillRect(x + ts * 0.3, y + ts * 0.34, ts * 0.4, ts * 0.32);
+    }
+  }
+
+  function drawLakeWallTile(ctx, grid, x, y, ts, gx, gy) {
+    const up = isWall(grid, gx, gy - 1);
+    const down = isWall(grid, gx, gy + 1);
+    const left = isWall(grid, gx - 1, gy);
+    const right = isWall(grid, gx + 1, gy);
+
+    // the middle of the map is the house on the water; the rest is decking
+    const central = Math.abs(gx - 13.5) <= 5.5 && Math.abs(gy - 15) <= 4.5;
+    if (central) {
+      const shades = ['#c9c2b0', '#b6ae9b', '#8a6250', '#d8d2c2'];
+      ctx.fillStyle = shades[Math.floor(hash(Math.floor(gx / 3), Math.floor(gy / 3), 9) * shades.length)];
+      ctx.fillRect(x, y, ts, ts);
+      if (hash(gx, gy, 14) > 0.5) {
+        ctx.fillStyle = hash(gx, gy, 15) > 0.5 ? 'rgba(255,214,120,0.9)' : 'rgba(70,110,140,0.85)';
+        ctx.fillRect(x + ts * 0.22, y + ts * 0.26, ts * 0.3, ts * 0.3);
+      }
+    } else {
+      // timber planking, run along the length of each jetty
+      const along = (!left || !right) && (up || down);
+      const planks = ['#8a6238', '#7a5630', '#96703f', '#6d4c2a'];
+      ctx.fillStyle = planks[Math.floor(hash(gx, gy, 7) * planks.length)];
+      ctx.fillRect(x, y, ts, ts);
+      ctx.fillStyle = 'rgba(0,0,0,0.22)';
+      for (let i = 1; i < 4; i++) {
+        if (along) ctx.fillRect(x + (ts / 4) * i, y, 1, ts);
+        else ctx.fillRect(x, y + (ts / 4) * i, ts, 1);
+      }
+      if (hash(gx, gy, 31) > 0.93) {           // a crate or barrel on the deck
+        ctx.fillStyle = 'rgba(0,0,0,0.3)';
+        ctx.fillRect(x + ts * 0.28 + 2, y + ts * 0.3 + 2, ts * 0.42, ts * 0.42);
+        ctx.fillStyle = '#b88a4a';
+        ctx.fillRect(x + ts * 0.28, y + ts * 0.3, ts * 0.42, ts * 0.42);
+      }
+    }
+
+    ctx.fillStyle = 'rgba(255,240,210,0.42)';
+    if (!up) ctx.fillRect(x, y, ts, 2);
+    if (!left) ctx.fillRect(x, y, 2, ts);
+    ctx.fillStyle = 'rgba(0,15,25,0.55)';
+    if (!down) ctx.fillRect(x, y + ts - 2, ts, 2);
+    if (!right) ctx.fillRect(x + ts - 2, y, 2, ts);
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* PLEASANT PARK                                                       */
+  /* Suburban streets, front lawns and the football pitch.               */
+  /* ------------------------------------------------------------------ */
+  function drawParkFloorTile(ctx, grid, x, y, ts, gx, gy) {
+    ctx.fillStyle = '#34383f';
+    ctx.fillRect(x, y, ts, ts);
+    ctx.fillStyle = 'rgba(255,255,255,0.05)';
+    ctx.fillRect(x, y, ts, 1);
+
+    // mown verges where the street meets a garden
+    ctx.fillStyle = 'rgba(90,150,60,0.5)';
+    if (isWall(grid, gx, gy - 1)) ctx.fillRect(x, y, ts, 2);
+    if (isWall(grid, gx, gy + 1)) ctx.fillRect(x, y + ts - 2, ts, 2);
+    if (isWall(grid, gx - 1, gy)) ctx.fillRect(x, y, 2, ts);
+    if (isWall(grid, gx + 1, gy)) ctx.fillRect(x + ts - 2, y, 2, ts);
+
+    const horiz = !isWall(grid, gx - 1, gy) && !isWall(grid, gx + 1, gy);
+    const vert = !isWall(grid, gx, gy - 1) && !isWall(grid, gx, gy + 1);
+    ctx.fillStyle = 'rgba(248,236,170,0.25)';
+    if (horiz && !vert) ctx.fillRect(x + ts * 0.15, y + ts / 2, ts * 0.7, 1.5);
+    if (vert && !horiz) ctx.fillRect(x + ts / 2, y + ts * 0.15, 1.5, ts * 0.7);
+    if (hash(gx, gy, 45) > 0.95) {
+      ctx.fillStyle = 'rgba(160,168,176,0.5)';
+      ctx.fillRect(x + ts * 0.32, y + ts * 0.36, ts * 0.36, ts * 0.28);
+    }
+  }
+
+  function drawParkWallTile(ctx, grid, x, y, ts, gx, gy, roof) {
+    const up = isWall(grid, gx, gy - 1);
+    const down = isWall(grid, gx, gy + 1);
+    const left = isWall(grid, gx - 1, gy);
+    const right = isWall(grid, gx + 1, gy);
+
+    // the middle of the village is the pitch, the rest is houses and hedges
+    const pitch = Math.abs(gx - 13.5) <= 5.5 && Math.abs(gy - 15) <= 4.5;
+    if (pitch) {
+      const stripe = Math.floor(gx / 2) % 2 === 0 ? '#3f7d2e' : '#4a8c36';
+      ctx.fillStyle = stripe;
+      ctx.fillRect(x, y, ts, ts);
+      ctx.fillStyle = 'rgba(255,255,255,0.35)';
+      if (!up) ctx.fillRect(x, y + 2, ts, 2);
+      if (!left) ctx.fillRect(x + 2, y, 2, ts);
+      return;
+    }
+
+    const hedge = hash(Math.floor(gx / 2), Math.floor(gy / 2), 19) > 0.72;
+    if (hedge) {
+      ctx.fillStyle = '#2f6b23';
+      ctx.fillRect(x, y, ts, ts);
+      for (let i = 0; i < 3; i++) {
+        const r1 = hash(gx, gy, 70 + i), r2 = hash(gx, gy, 80 + i);
+        ctx.fillStyle = r1 > 0.5 ? '#3f8a2e' : '#245018';
+        ctx.fillRect(x + Math.floor(r1 * (ts - 4)), y + Math.floor(r2 * (ts - 4)), 3, 3);
+      }
+    } else {
+      ctx.fillStyle = roof || '#b9755a';
+      ctx.fillRect(x, y, ts, ts);
+      // ridge tiles along the roof
+      ctx.fillStyle = 'rgba(0,0,0,0.16)';
+      for (let i = 1; i < 3; i++) ctx.fillRect(x, y + (ts / 3) * i, ts, 1);
+      if (hash(gx, gy, 11) > 0.55) {
+        ctx.fillStyle = hash(gx, gy, 12) > 0.5 ? 'rgba(255,214,120,0.9)' : 'rgba(96,150,190,0.8)';
+        ctx.fillRect(x + ts * 0.26, y + ts * 0.3, ts * 0.26, ts * 0.26);
+      }
+      if (hash(gx, gy, 31) > 0.94) {          // chimney
+        ctx.fillStyle = '#7d6a5a';
+        ctx.fillRect(x + ts * 0.6, y + ts * 0.2, ts * 0.22, ts * 0.3);
+      }
+    }
+
+    ctx.fillStyle = 'rgba(255,255,255,0.35)';
+    if (!up) ctx.fillRect(x, y, ts, 2);
+    if (!left) ctx.fillRect(x, y, 2, ts);
+    ctx.fillStyle = 'rgba(0,0,0,0.45)';
+    if (!down) ctx.fillRect(x, y + ts - 2, ts, 2);
+    if (!right) ctx.fillRect(x + ts - 2, y, 2, ts);
+  }
+
   /**
    * Build the static board image.
    * @param {string} theme 'city' (Tilted Towers) or 'crater' (Dusty Divot)
@@ -377,7 +532,7 @@
     const ctx = c.getContext('2d');
     ctx.imageSmoothingEnabled = false;
 
-    const roofs = theme === 'crater' ? null : roofColors(grid);
+    const roofs = (theme === 'crater' || theme === 'lake') ? null : roofColors(grid);
 
     for (let gy = 0; gy < Maze.ROWS; gy++) {
       for (let gx = 0; gx < Maze.COLS; gx++) {
@@ -385,13 +540,20 @@
         const y = gy * ts;
         const tile = grid[gy][gx];
         const crater = theme === 'crater';
+        const lake = theme === 'lake';
+        const park = theme === 'park';
         if (tile === T.WALL) {
           if (isBorder(gx, gy)) {
             // the landscape the map sits in, around the outer ring
-            if (!crater && gx >= Maze.COLS - 1) drawRiverTile(ctx, x, y, ts, gx, gy);
+            if (lake) drawRiverTile(ctx, x, y, ts, gx, gy);
+            else if (!crater && !park && gx >= Maze.COLS - 1) drawRiverTile(ctx, x, y, ts, gx, gy);
             else drawGrassTile(ctx, x, y, ts, gx, gy);
           } else if (crater) {
             drawCraterWallTile(ctx, grid, x, y, ts, gx, gy);
+          } else if (lake) {
+            drawLakeWallTile(ctx, grid, x, y, ts, gx, gy);
+          } else if (park) {
+            drawParkWallTile(ctx, grid, x, y, ts, gx, gy, roofs && roofs[gy][gx]);
           } else {
             drawBuildingTile(ctx, grid, x, y, ts, gx, gy, roofs[gy][gx]);
           }
@@ -399,6 +561,10 @@
           drawDoorTile(ctx, x, y, ts, crater);
         } else if (crater) {
           drawCraterFloorTile(ctx, grid, x, y, ts, gx, gy);
+        } else if (lake) {
+          drawLakeFloorTile(ctx, grid, x, y, ts, gx, gy);
+        } else if (park) {
+          drawParkFloorTile(ctx, grid, x, y, ts, gx, gy);
         } else {
           drawRoadTile(ctx, grid, x, y, ts, gx, gy);
         }
@@ -408,9 +574,13 @@
     // the tunnel mouths open onto the landscape, so blend them out
     const mouths = [0, (Maze.COLS - 1) * ts];
     mouths.forEach(function (mx) {
+      const gx = mx ? Maze.COLS - 1 : 0;
       if (theme === 'crater') {
-        drawCraterFloorTile(ctx, grid, mx, Maze.TUNNEL_ROW * ts, ts,
-          mx ? Maze.COLS - 1 : 0, Maze.TUNNEL_ROW);
+        drawCraterFloorTile(ctx, grid, mx, Maze.TUNNEL_ROW * ts, ts, gx, Maze.TUNNEL_ROW);
+      } else if (theme === 'lake') {
+        drawLakeFloorTile(ctx, grid, mx, Maze.TUNNEL_ROW * ts, ts, gx, Maze.TUNNEL_ROW);
+      } else if (theme === 'park') {
+        drawParkFloorTile(ctx, grid, mx, Maze.TUNNEL_ROW * ts, ts, gx, Maze.TUNNEL_ROW);
       } else {
         ctx.fillStyle = '#2f3238';
         ctx.fillRect(mx, Maze.TUNNEL_ROW * ts, ts, ts);

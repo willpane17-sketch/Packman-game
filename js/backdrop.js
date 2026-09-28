@@ -558,8 +558,168 @@
     vignette(ctx, w, h, 0.5);
   }
 
+
+  /* ------------------------------------------------------------------ */
+  /* LOOT LAKE                                                           */
+  /* ------------------------------------------------------------------ */
+  function paintLake(canvas) {
+    const w = canvas.width, h = canvas.height;
+    const ctx = canvas.getContext('2d');
+    const rand = rng(51234);
+    const cx = w / 2, cy = h / 2;
+    const R = Math.max(w, h) * 0.55;
+
+    const base = ctx.createLinearGradient(0, 0, w * 0.35, h);
+    base.addColorStop(0, '#5f9c3f');
+    base.addColorStop(0.55, '#4e8634');
+    base.addColorStop(1, '#3f6f2b');
+    ctx.fillStyle = base;
+    ctx.fillRect(0, 0, w, h);
+    groundTexture(ctx, w, h, rand);
+
+    road(ctx, [[-30, h * 0.08], [w * 0.35, h * 0.04], [w + 30, h * 0.1]], Math.max(11, w * 0.018));
+
+    function shoreAt(a) {
+      return R * (1 + 0.09 * Math.sin(a * 5 + 0.4) + 0.06 * Math.sin(a * 9 - 1.2));
+    }
+    function lakePath(scale) {
+      ctx.beginPath();
+      for (let i = 0; i <= 190; i++) {
+        const a = (i / 190) * Math.PI * 2;
+        const r = shoreAt(a) * scale;
+        const x = cx + Math.cos(a) * r, y = cy + Math.sin(a) * r * 0.9;
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+    }
+
+    // sand, then shallows, then deep water
+    ctx.save();
+    lakePath(1.06); ctx.fillStyle = '#cbbe8e'; ctx.fill();
+    lakePath(1.0); ctx.fillStyle = '#4fa3c6'; ctx.fill();
+    lakePath(0.92); ctx.fillStyle = '#2f83ab'; ctx.fill();
+    lakePath(0.7);
+    const deep = ctx.createRadialGradient(cx, cy, R * 0.1, cx, cy, R * 0.75);
+    deep.addColorStop(0, '#1d5f84');
+    deep.addColorStop(1, '#2a7ba3');
+    ctx.fillStyle = deep; ctx.fill();
+    // surface glints
+    lakePath(1.0); ctx.clip();
+    ctx.strokeStyle = 'rgba(220,245,255,0.3)';
+    ctx.lineWidth = 2;
+    for (let i = 0; i < 140; i++) {
+      const x = cx + (rand() - 0.5) * R * 2, y = cy + (rand() - 0.5) * R * 1.8;
+      ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + 10 + rand() * 24, y); ctx.stroke();
+    }
+    ctx.restore();
+
+    // the house out on the water, with its jetty
+    const site = Math.min(w, h) * 0.1;
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.fillRect(cx - site * 0.9, cy - site * 0.7, site * 1.8, site * 1.4);
+    building(ctx, cx - site * 0.85, cy - site * 0.65, site * 1.7, site * 1.3, rand, '#c9c2b0');
+    ctx.fillStyle = '#8a6238';
+    ctx.fillRect(cx - site * 0.18, cy + site * 0.65, site * 0.36, site * 1.5);
+
+    // jetties reaching out from the shore
+    for (let i = 0; i < 7; i++) {
+      const a = rand() * Math.PI * 2;
+      const r = shoreAt(a) * 0.98;
+      ctx.save();
+      ctx.translate(cx + Math.cos(a) * r, cy + Math.sin(a) * r * 0.9);
+      ctx.rotate(a + Math.PI / 2);
+      ctx.fillStyle = 'rgba(0,0,0,0.3)';
+      ctx.fillRect(-6, -4, 12, site * 0.9);
+      ctx.fillStyle = '#8a6238';
+      ctx.fillRect(-7, -6, 14, site * 0.85);
+      ctx.restore();
+    }
+
+    // shoreline houses and trees
+    [[0.07, 0.12], [0.9, 0.14], [0.08, 0.88], [0.9, 0.86]].forEach(function (pt) {
+      for (let i = 0; i < 3; i++) {
+        house(ctx, w * pt[0] + (rand() - 0.5) * 80, h * pt[1] + (rand() - 0.5) * 60,
+          22 + rand() * 24, 18 + rand() * 20, rand);
+      }
+    });
+    for (let i = 0; i < 26; i++) {
+      const a = rand() * Math.PI * 2;
+      const d = shoreAt(a) * (1.12 + rand() * 0.45);
+      const x = cx + Math.cos(a) * d, y = cy + Math.sin(a) * d * 0.9;
+      if (x < -60 || y < -60 || x > w + 60 || y > h + 60) continue;
+      treeCluster(ctx, x, y, 3 + Math.floor(rand() * 4), 55, rand);
+    }
+    vignette(ctx, w, h, 0.5);
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* PLEASANT PARK                                                       */
+  /* ------------------------------------------------------------------ */
+  function paintPark(canvas) {
+    const w = canvas.width, h = canvas.height;
+    const ctx = canvas.getContext('2d');
+    const rand = rng(90210);
+
+    const base = ctx.createLinearGradient(0, 0, w * 0.3, h);
+    base.addColorStop(0, '#6cab47');
+    base.addColorStop(0.55, '#5b9439');
+    base.addColorStop(1, '#4a7d2f');
+    ctx.fillStyle = base;
+    ctx.fillRect(0, 0, w, h);
+    groundTexture(ctx, w, h, rand);
+
+    // the ring road around the village
+    const rw = Math.max(12, w * 0.02);
+    road(ctx, [[w * 0.08, -20], [w * 0.1, h * 0.4], [w * 0.09, h + 20]], rw);
+    road(ctx, [[w * 0.92, -20], [w * 0.9, h * 0.5], [w * 0.91, h + 20]], rw);
+    road(ctx, [[-20, h * 0.1], [w * 0.5, h * 0.08], [w + 20, h * 0.11]], rw);
+    road(ctx, [[-20, h * 0.9], [w * 0.5, h * 0.92], [w + 20, h * 0.89]], rw);
+
+    // the football pitch at the centre, marked out
+    const pw = Math.min(w, h) * 0.3, ph = pw * 0.62;
+    const px0 = w / 2 - pw / 2, py0 = h / 2 - ph / 2;
+    for (let i = 0; i < 8; i++) {
+      ctx.fillStyle = i % 2 ? '#4e8c39' : '#59a042';
+      ctx.fillRect(px0 + (pw / 8) * i, py0, pw / 8, ph);
+    }
+    ctx.strokeStyle = 'rgba(255,255,255,0.75)';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(px0, py0, pw, ph);
+    ctx.beginPath();
+    ctx.moveTo(w / 2, py0); ctx.lineTo(w / 2, py0 + ph);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(w / 2, h / 2, ph * 0.18, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // the houses that ring the green
+    const ring = [
+      [0.2, 0.2], [0.5, 0.16], [0.8, 0.2], [0.84, 0.5],
+      [0.8, 0.8], [0.5, 0.86], [0.2, 0.8], [0.16, 0.5]
+    ];
+    ring.forEach(function (pt) {
+      for (let i = 0; i < 3; i++) {
+        house(ctx, w * pt[0] + (rand() - 0.5) * 110, h * pt[1] + (rand() - 0.5) * 80,
+          30 + rand() * 34, 26 + rand() * 28, rand);
+      }
+    });
+
+    for (let i = 0; i < 12; i++) {
+      vehicle(ctx, w * (0.1 + rand() * 0.8), rand() > 0.5 ? h * 0.1 : h * 0.9,
+        Math.PI / 2 + (rand() - 0.5) * 0.4, rand);
+    }
+    pond(ctx, w * 0.06, h * 0.68, Math.min(w, h) * 0.03, rand);
+    field(ctx, w * 0.86, h * 0.2, w * 0.1, h * 0.12, rand);
+    for (let i = 0; i < 22; i++) {
+      treeCluster(ctx, rand() * w, rand() * h, 2 + Math.floor(rand() * 3), 45, rand);
+    }
+    vignette(ctx, w, h, 0.5);
+  }
+
   function paint(canvas, theme) {
     if (theme === 'crater') paintCrater(canvas);
+    else if (theme === 'lake') paintLake(canvas);
+    else if (theme === 'park') paintPark(canvas);
     else paintCity(canvas);
   }
 

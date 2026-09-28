@@ -771,7 +771,124 @@
     ctx.restore();
   }
 
+
+  /* ------------------------------------------------------------------ */
+  /* POWER-UPS                                                           */
+  /* ------------------------------------------------------------------ */
+  const PU_COLORS = {
+    R: '#e8342a', r: '#a5180f', G: '#3f9a2b', g: '#256b18',   // chili
+    Y: '#ffd447', y: '#c79a12', W: '#fff6d0', O: '#f0a03a',   // gold
+    B: '#4fc3ff', b: '#1b74b8', w: '#eafaff',                 // shield / freeze
+    P: '#c6a6ff', p: '#7a4fd0',                               // shockwave
+    N: '#e8e8ee', n: '#8d8d99', M: '#e8342a',                 // magnet
+    k: '#20202a'
+  };
+
+  const PU_MAPS = {
+    chili: [
+      '      gG  ',
+      '     GG   ',
+      '    RRR   ',
+      '   RRRRr  ',
+      '   RRRRr  ',
+      '   rRRRr  ',
+      '    rRRr  ',
+      '    rRRr  ',
+      '     rr   ',
+      '          '
+    ],
+    golden: [
+      '   WWWW   ',
+      '  WYYYYW  ',
+      ' WYYYYYYW ',
+      ' YYYYYYYY ',
+      ' WWWWWWWW ',
+      ' YOOOOOOY ',
+      ' YYYYYYYY ',
+      '  yYYYYy  ',
+      '   yyyy   ',
+      '          '
+    ],
+    shield: [
+      '   BBBB   ',
+      '  BwwwwB  ',
+      ' BwBBBBwB ',
+      ' BwBwwBwB ',
+      ' BwBwwBwB ',
+      ' BwBBBBwB ',
+      '  BwwwwB  ',
+      '   BBBB   ',
+      '    bb    ',
+      '          '
+    ],
+    freeze: [
+      '    w     ',
+      ' w  w  w  ',
+      '  w w w   ',
+      '   www    ',
+      ' wwwWwww  ',
+      '   www    ',
+      '  w w w   ',
+      ' w  w  w  ',
+      '    w     ',
+      '          '
+    ],
+    shock: [
+      '   PPPP   ',
+      '  P    P  ',
+      ' P  PP  P ',
+      ' P PppP P ',
+      ' P PppP P ',
+      ' P  PP  P ',
+      '  P    P  ',
+      '   PPPP   ',
+      '          ',
+      '          '
+    ],
+    magnet: [
+      '  NNNNNN  ',
+      ' NnnnnnnN ',
+      ' Nn    nN ',
+      ' Nn    nN ',
+      ' Nn    nN ',
+      ' Nn    nN ',
+      ' MM    MM ',
+      ' MM    MM ',
+      ' mm    mm ',
+      '          '
+    ]
+  };
+
+  const puImages = {};
+  Object.keys(PU_MAPS).forEach(function (key) {
+    puImages[key] = bakePixels(PU_MAPS[key], PU_COLORS, '#ff00ff');
+  });
+
+  /** A power-up sitting on the board, bobbing and glowing. */
+  function drawPowerUp(ctx, key, cx, cy, size, pulse) {
+    const img = puImages[key];
+    if (!img) return;
+    const s = (size / 10) * (0.94 + 0.1 * pulse);
+    const w = 10 * s, h = 10 * s;
+    ctx.imageSmoothingEnabled = false;
+    ctx.save();
+    ctx.shadowColor = 'rgba(255,255,255,0.8)';
+    ctx.shadowBlur = 6 + 5 * pulse;
+    ctx.drawImage(img, Math.round(cx - w / 2), Math.round(cy - h / 2), w, h);
+    ctx.restore();
+  }
+
+  /** The same icon, flat, for the active-power-up strip in the HUD. */
+  function drawPowerUpIcon(ctx, key, x, y, size) {
+    const img = puImages[key];
+    if (!img) return;
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(img, Math.round(x), Math.round(y), size, size);
+  }
+
   global.Sprites = {
+    drawPowerUp: drawPowerUp,
+    drawPowerUpIcon: drawPowerUpIcon,
     drawVictoryBanner: drawVictoryBanner,
     drawReboot: drawReboot,
     drawPac: drawPac,

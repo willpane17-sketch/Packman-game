@@ -65,6 +65,58 @@
       const notes = [523, 659, 784, 1046, 784, 1046];
       notes.forEach(function (n, i) { tone(n, 0.13, 'square', 0.07, i * 0.14); });
     },
+    combo: function (mult) {
+      tone(420 + mult * 70, 0.09, 'square', 0.06);
+      tone(620 + mult * 90, 0.09, 'square', 0.05, 0.06);
+    },
+    powerUp: function () {
+      tone(520, 0.08, 'square', 0.07);
+      tone(780, 0.08, 'square', 0.07, 0.07);
+      tone(1180, 0.14, 'triangle', 0.07, 0.14);
+    },
+    shockwave: function () {
+      tone(900, 0.3, 'sawtooth', 0.09, 0, 80);
+      tone(300, 0.35, 'square', 0.06, 0.02, 60);
+    },
+    freeze: function () {
+      tone(1400, 0.3, 'sine', 0.06, 0, 500);
+      tone(900, 0.3, 'triangle', 0.05, 0.05, 380);
+    },
+    shield: function () {
+      tone(300, 0.2, 'square', 0.08, 0, 900);
+    },
+    secret: function () {
+      [660, 880, 1046, 1318].forEach(function (n, i) {
+        tone(n, 0.14, 'triangle', 0.08, i * 0.1);
+      });
+    },
+    event: function () {
+      tone(200, 0.18, 'sawtooth', 0.07, 0, 600);
+      tone(600, 0.2, 'square', 0.06, 0.12);
+    },
+    bossWarn: function () {
+      [0, 0.35, 0.7].forEach(function (t) {
+        tone(150, 0.28, 'sawtooth', 0.09, t, 90);
+      });
+    },
+    bossHit: function () {
+      tone(180, 0.18, 'square', 0.1, 0, 90);
+    },
+    bossDown: function () {
+      [392, 330, 262, 196].forEach(function (n, i) { tone(n, 0.3, 'sawtooth', 0.1, i * 0.16); });
+      tone(1046, 0.5, 'triangle', 0.08, 0.7);
+    },
+    highScore: function () {
+      [523, 659, 784, 1046, 1318, 1568].forEach(function (n, i) {
+        tone(n, 0.12, 'square', 0.07, i * 0.09);
+      });
+    },
+    tick: function () {
+      tone(1200, 0.05, 'square', 0.05);
+    },
+    achievement: function () {
+      [784, 988, 1318].forEach(function (n, i) { tone(n, 0.12, 'triangle', 0.07, i * 0.09); });
+    },
     victory: function () {
       // a short triumphant fanfare
       const melody = [
