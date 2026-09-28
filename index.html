@@ -5,11 +5,46 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>Burger Munch</title>
 <meta name="description" content="A Pac-Man style arcade game set in Tilted Towers, starring a pixel burger and four Jonesy ghosts.">
+<link rel="icon" href="assets/icon.png">
 <link rel="stylesheet" href="css/fonts.css">
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
   <canvas id="backdrop" aria-hidden="true"></canvas>
+
+  <!-- the sign-in gate; hidden the moment somebody is in -->
+  <div class="gate" id="gate" hidden>
+    <div class="gate-card">
+      <h2>Burger Munch</h2>
+      <p class="gate-sub">Sign in to get on the board</p>
+
+      <form id="gate-form" autocomplete="off">
+        <label for="gate-name">Player name</label>
+        <input id="gate-name" name="name" type="text" maxlength="14" required
+               autocapitalize="characters" spellcheck="false" placeholder="2-14 characters">
+
+        <label for="gate-pass">Passcode</label>
+        <input id="gate-pass" name="pass" type="password" minlength="4" required
+               placeholder="at least 4 characters">
+        <p class="gate-warn">Not a real account &mdash; do not reuse a password you use elsewhere.</p>
+
+        <p class="gate-error" id="gate-error" role="alert"></p>
+
+        <div class="gate-buttons">
+          <button type="submit" id="gate-in" class="primary">Sign in</button>
+          <button type="button" id="gate-new">Create account</button>
+        </div>
+      </form>
+
+      <button type="button" id="gate-guest" class="gate-guest">Play as guest &mdash; no score saved</button>
+
+      <div class="gate-board">
+        <h3>Leaderboard <span id="gate-board-scope"></span></h3>
+        <ol id="gate-board-list"><li class="empty">No scores yet</li></ol>
+        <p class="gate-where" id="gate-where"></p>
+      </div>
+    </div>
+  </div>
 
   <div class="shell">
     <header class="topbar">
@@ -23,6 +58,7 @@
       <div class="stat right">
         <span class="label">High</span>
         <span class="value" id="highscore">000000</span>
+        <button class="who" id="who" type="button" hidden></button>
       </div>
     </header>
 
@@ -57,6 +93,7 @@
         <button id="pause-btn" type="button">⏸ Pause</button>
         <button id="fullscreen-btn" type="button">⛶ Full screen</button>
         <button id="mute-btn" type="button">🔊 Sound on</button>
+        <button id="board-btn" type="button">🏆 Board</button>
       </div>
     </footer>
 
@@ -85,6 +122,8 @@
   <script src="js/render.js"></script>
   <script src="js/audio.js"></script>
   <script src="js/quiz.js"></script>
+  <script src="js/accounts.js"></script>
+  <script src="js/leaderboard.js"></script>
   <script src="js/game.js"></script>
 </body>
 </html>

@@ -10,6 +10,16 @@ const path = require('path');
 const DEFAULT_WIDTH = 900;
 const DEFAULT_HEIGHT = 1000;
 
+// Point the app at a shared leaderboard by launching it with
+//   npm start -- --server=http://192.168.1.50:3000
+// or by setting BURGER_SERVER. The game is then loaded FROM that server, so
+// it is same-origin with the API and nothing else needs configuring.
+const SERVER = (function () {
+  const arg = process.argv.find(function (a) { return a.indexOf('--server=') === 0; });
+  const url = arg ? arg.slice('--server='.length) : (process.env.BURGER_SERVER || '');
+  return /^https?:\/\//.test(url) ? url : '';
+})();
+
 let win = null;
 
 function createWindow() {
@@ -33,7 +43,12 @@ function createWindow() {
   });
 
   Menu.setApplicationMenu(null);
-  win.loadFile('index.html');
+  if (SERVER) {
+    console.log('Using the shared leaderboard at ' + SERVER);
+    win.loadURL(SERVER);
+  } else {
+    win.loadFile('index.html');
+  }
 
   // wait for the first paint so the window never flashes empty
   win.once('ready-to-show', function () {
@@ -46,7 +61,8 @@ function createWindow() {
   win.webContents.setWindowOpenHandler(function () {
     return { action: 'deny' };
   });
-  win.webContents.on('will-navigate', function (event) {
+  win.webContents.on('will-navigate', function (event, url) {
+    if (SERVER && url.indexOf(SERVER) === 0) return;   // staying on our server
     event.preventDefault();
   });
 

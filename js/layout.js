@@ -56,6 +56,20 @@
       applied = next;
       root.style.setProperty('--board', next + 'px');
     }
+
+    // Two passes get within a few pixels, but a few pixels is still a
+    // scrollbar. Measure what is actually left over and take it off the
+    // board until nothing hangs off the bottom. Bounded, so an impossible
+    // layout cannot spin here. Phones are left alone: down there the d-pad
+    // sits below the board and scrolling is the intended answer.
+    if (!narrow) {
+      for (let i = 0; i < 12; i++) {
+        const over = root.scrollHeight - root.clientHeight;
+        if (over <= 0 || applied <= MIN_BOARD) break;
+        applied = Math.max(MIN_BOARD, applied - Math.max(2, Math.ceil(over * ASPECT)));
+        root.style.setProperty('--board', applied + 'px');
+      }
+    }
   }
 
   function schedule() {

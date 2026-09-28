@@ -472,11 +472,18 @@
   }
 
   /** Switch difficulty. Only meaningful outside a run, so callers check. */
+  function syncBoardScope() {
+    if (!window.Leaderboard) return;
+    Leaderboard.setScope(game.mapKey, game.difficulty,
+      currentMap().name + ' / ' + diff().name);
+  }
+
   function setDifficulty(key) {
     if (!DIFFICULTIES[key] || key === game.difficulty) return;
     game.difficulty = key;
     localStorage.setItem('tt-burger-mode', key);
     game.high = storedHigh(game.mapKey, key);
+    syncBoardScope();
     updateHud();
     renderModeButtons();
     Sound.unlock();
@@ -490,6 +497,7 @@
     game.mapKey = map.key;
     localStorage.setItem('tt-burger-map', map.key);
     game.high = storedHigh(game.mapKey, game.difficulty);
+    syncBoardScope();
     if (window.Backdrop) Backdrop.setTheme(map.theme);
     loadLevel(true);            // repaint the board in the new map's theme
     updateHud();
@@ -572,8 +580,15 @@
     const wins = Number(localStorage.getItem(winKey) || 0) + 1;
     localStorage.setItem(winKey, String(wins));
     game.wins = wins;
+    postRun(true);
     updateHud();
     renderModeButtons();
+  }
+
+  /** Send the finished run to the leaderboard. Guests are simply skipped. */
+  function postRun(won) {
+    if (!window.Leaderboard) return;
+    Leaderboard.submit(game.score, game.mapKey, diff().key, won);
   }
 
   function loseLife() {
@@ -582,6 +597,7 @@
     if (game.lives <= 0) {
       game.state = STATE.GAME_OVER;
       Sound.gameOver();
+      postRun(false);
       renderModeButtons();
       if (game.score > game.high) {
         game.high = game.score;
@@ -2518,6 +2534,8 @@
     Numpad1: 0, Numpad2: 1, Numpad3: 2, Numpad4: 3 };
 
   window.addEventListener('keydown', function (e) {
+    // the sign-in overlay owns the keyboard while it is showing
+    if (window.Leaderboard && Leaderboard.isOpen()) return;
     // a question owns the keyboard while it is up
     if (window.Quiz && Quiz.active()) {
       e.preventDefault();
@@ -2734,6 +2752,14 @@
   renderModeButtons();
   renderLootRow();
   requestAnimationFrame(frame);
+
+  if (window.Leaderboard) {
+    Leaderboard.init(function () {
+      // the board is ranked per map and mode, so tell it which is showing
+      Leaderboard.setScope(game.mapKey, game.difficulty,
+        currentMap().name + ' / ' + diff().name);
+    });
+  }
 
   // exposed for the smoke test / debugging in the console
   window.__game = { game: game, pac: pac, ghosts: ghosts, startGame: startGame, STATE: STATE, TILE: TILE, updateHud: updateHud, setDifficulty: setDifficulty, setMap: setMap, DIFFICULTIES: DIFFICULTIES };

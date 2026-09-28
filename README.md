@@ -79,6 +79,18 @@ Plug a pad or arcade stick in and it just works - see
 [JOYSTICK.md](JOYSTICK.md), which also covers JoyToKey if you would rather use
 that.
 
+## Accounts and the leaderboard
+
+The game asks who is playing before it starts. Sign in and your best score
+per map and mode goes on the board; **Play as guest** saves nothing.
+
+On its own it keeps accounts in that machine's browser storage. Run
+`node server.js` on one machine and everyone who opens the address it prints
+shares a live table instead - the game spots the server on its own, with
+nothing to configure. A passcode is never stored anywhere, only a salted
+hash. [LEADERBOARD.md](LEADERBOARD.md) has the details, including what this
+does and does not protect.
+
 ## Maps
 
 Pick a map on the title screen with the left and right arrows, or the Map
@@ -218,6 +230,9 @@ js/render.js        paints a board to an offscreen canvas, themed per map
 js/fx.js            particles, screen shake, floating score, announcements
 js/achievements.js  the eight achievements and their toasts
 js/quiz.js          the digital forensics question bank and its card
+js/accounts.js      accounts, salted passcode hashing, personal bests
+js/leaderboard.js   the sign-in gate and the score table
+server.js           optional: the shared leaderboard, and serves the game
 js/audio.js         WebAudio sound effects
 js/game.js          game loop, movement, enemy AI, combos, power-ups, scoring
 ```
