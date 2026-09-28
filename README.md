@@ -73,6 +73,11 @@ python3 -m http.server 8000
 | F, or F11 in the app | Full screen |
 | 1 / 2 / 3 | Easy / Hard / Extreme (on the menus) |
 | Swipe or on-screen D-pad | Move (touch devices) |
+| Joystick / gamepad | Move; **A**/**Start** to start or pause, **B** pause, **X** sound, **Y** full screen |
+
+Plug a pad or arcade stick in and it just works - see
+[JOYSTICK.md](JOYSTICK.md), which also covers JoyToKey if you would rather use
+that.
 
 ## Maps
 

@@ -852,6 +852,7 @@
       pac.nextTtl -= dt;
       if (pac.nextTtl <= 0) pac.next = pac.dir;
     }
+    applyHeld();
     // an instant U-turn is allowed anywhere, not just on a tile centre
     if (pac.next === OPPOSITE[pac.dir]) {
       const tx = tileOf(pac.x), ty = tileOf(pac.y);
@@ -2365,6 +2366,7 @@
       Achievements.update(dt);
     }
     draw(dt);
+    pollPads();
     requestAnimationFrame(frame);
   }
 
@@ -2431,10 +2433,50 @@
     KeyW: 'up', KeyS: 'down', KeyA: 'left', KeyD: 'right'
   };
 
-  function setDir(dir) {
+  function queueDir(dir) {
     pac.next = dir;
     pac.nextTtl = NEXT_TTL;
+  }
+
+  function setDir(dir) {
+    queueDir(dir);
     Sound.unlock();
+  }
+
+  /* ---- held directions ------------------------------------------------
+     A joystick is held, not tapped. JoyToKey turns a tilt into a real key
+     press and a real release, so tracking what is still down lets a held
+     turn stay queued instead of ageing out, and lets a diagonal push resolve
+     to the way that is actually open rather than to whichever of the two
+     keys happened to arrive last. */
+  const held = { up: false, down: false, left: false, right: false };
+
+  function clearHeld() {
+    held.up = held.down = held.left = held.right = false;
+  }
+
+  function resolveHeld() {
+    const on = [];
+    for (const d in held) if (held[d]) on.push(d);
+    if (on.length < 2) return on[0] || null;
+    // a diagonal: take whichever way is open here, so pushing up-right at a
+    // corner turns up the moment up exists rather than a tile later
+    const tx = tileOf(pac.x), ty = tileOf(pac.y);
+    for (let i = 0; i < on.length; i++) {
+      if (on[i] === pac.dir) continue;
+      const v = DIRS[on[i]];
+      if (v && !isWallFor(tx + v.x, ty + v.y, null)) return on[i];
+    }
+    // nothing open yet: keep the turn pending rather than cancelling it, so
+    // a diagonal push still takes the corner as soon as one appears
+    for (let i = 0; i < on.length; i++) if (on[i] !== pac.dir) return on[i];
+    return on[0];
+  }
+
+  /** Re-assert a held direction every frame so it never expires mid-push. */
+  function applyHeld() {
+    const d = resolveHeld();
+    if (d) queueDir(d);
   }
 
   const MODE_KEYS = { Digit1: 'easy', Digit2: 'hard', Digit3: 'extreme',
@@ -2459,6 +2501,7 @@
     }
     if (KEY_DIRS[e.code]) {
       e.preventDefault();
+      held[KEY_DIRS[e.code]] = true;
       setDir(KEY_DIRS[e.code]);
       return;
     }
@@ -2472,6 +2515,13 @@
     if (e.code === 'KeyM') toggleMute();
     if (e.code === 'KeyF') toggleFullscreen();
   });
+
+  window.addEventListener('keyup', function (e) {
+    if (KEY_DIRS[e.code]) held[KEY_DIRS[e.code]] = false;
+  });
+
+  // alt-tabbing away swallows the release, which would wedge the stick on
+  window.addEventListener('blur', clearHeld);
 
   function togglePause() {
     if (game.state !== STATE.PLAY) return;
@@ -2559,6 +2609,74 @@
     Sound.unlock();
     if (modeSelectable()) startGame();
   });
+
+  /* ------------------------------------------------------------------ */
+  /* GAMEPAD                                                             */
+  /* ------------------------------------------------------------------ */
+  /* Read a stick directly as well, so a pad works on its own without
+     JoyToKey in between. Both paths end up dispatching the same key events,
+     so the menus, the mode picker and the pause key all behave identically
+     whichever one the player is using - and if both are running at once the
+     two just agree with each other. */
+  const PAD_ON = 0.55;             // tilt that counts as a push...
+  const PAD_OFF = 0.35;            // ...and the smaller one that releases it,
+                                   // so a stick resting on the line cannot chatter
+  const PAD_BUTTONS = {            // standard layout
+    0: 'Enter', 9: 'Enter',        // A / Start
+    1: 'KeyP',                     // B      - pause
+    2: 'KeyM',                     // X      - sound
+    3: 'KeyF'                      // Y      - full screen
+  };
+  const PAD_DPAD = {               // hat reported as buttons
+    12: 'ArrowUp', 13: 'ArrowDown', 14: 'ArrowLeft', 15: 'ArrowRight'
+  };
+  const padDown = {};              // key codes this pad is currently holding
+
+  function padKey(code, down) {
+    if (!!padDown[code] === down) return;          // only on a change
+    padDown[code] = down;
+    window.dispatchEvent(new KeyboardEvent(down ? 'keydown' : 'keyup',
+      { code: code, bubbles: true }));
+  }
+
+  // a push has to pass PAD_ON to start but only falls back below PAD_OFF to
+  // stop, so a stick resting near the line cannot chatter
+  function axisOn(code, towards) {
+    return padDown[code] ? towards > PAD_OFF : towards > PAD_ON;
+  }
+
+  function pollPads() {
+    if (!navigator.getGamepads) return;
+    const pads = navigator.getGamepads();
+    let pad = null;
+    for (let i = 0; i < pads.length; i++) {
+      if (pads[i] && pads[i].connected) { pad = pads[i]; break; }
+    }
+    if (!pad) {                                    // unplugged mid-push
+      for (const code in padDown) padKey(code, false);
+      return;
+    }
+    const ax = pad.axes || [], btn = pad.buttons || [];
+    // the left stick, or the right one when that is the one being pushed
+    const x = Math.abs(ax[2] || 0) > Math.abs(ax[0] || 0) ? (ax[2] || 0) : (ax[0] || 0);
+    const y = Math.abs(ax[3] || 0) > Math.abs(ax[1] || 0) ? (ax[3] || 0) : (ax[1] || 0);
+
+    // stick and hat both feed the same four keys, so decide each one once
+    const want = {
+      ArrowLeft: axisOn('ArrowLeft', -x),
+      ArrowRight: axisOn('ArrowRight', x),
+      ArrowUp: axisOn('ArrowUp', -y),
+      ArrowDown: axisOn('ArrowDown', y)
+    };
+    for (const i in PAD_DPAD) {
+      if (btn[i] && btn[i].pressed) want[PAD_DPAD[i]] = true;
+    }
+    for (const i in PAD_BUTTONS) {
+      const code = PAD_BUTTONS[i];
+      want[code] = want[code] || !!(btn[i] && btn[i].pressed);
+    }
+    for (const code in want) padKey(code, want[code]);
+  }
 
   /* ------------------------------------------------------------------ */
   /* BOOT                                                                */
