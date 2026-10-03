@@ -473,3 +473,107 @@ kbd {
   .gate-card h2 { font-size: 14px; }
   .gate-buttons { flex-direction: column; }
 }
+
+/* ==========================================================================
+   Polish pass: one consistent panel language across the HUD, proper button
+   states, and animation that stops when the system asks it to.
+   ========================================================================== */
+
+/* The bars read as one set of panels rather than three different boxes. */
+.topbar, .bottombar {
+  background: linear-gradient(180deg, rgba(12, 28, 23, 0.9), rgba(6, 16, 13, 0.9));
+  border-color: rgba(126, 240, 255, 0.18);
+  box-shadow: 0 6px 0 rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.label {
+  color: #7fd0c4;
+  font-size: clamp(7px, calc(var(--board) / 62), 11px);
+  opacity: 0.85;
+}
+
+.value { text-shadow: 0 2px 0 rgba(0, 0, 0, 0.6); }
+
+/* the score lifts very slightly while it is counting up */
+#score {
+  transition: transform 140ms ease-out, color 140ms ease-out;
+  transform-origin: left center;
+}
+
+#score.ticking {
+  color: #fff6c9;
+  transform: scale(1.06);
+}
+
+.title-block h1 { text-shadow: 0 2px 0 #000; }
+
+.stage {
+  border-color: rgba(126, 240, 255, 0.2);
+  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.6), 0 10px 0 rgba(0, 0, 0, 0.45),
+    inset 0 0 44px rgba(0, 0, 0, 0.55);
+}
+
+/* --- buttons: a real set of states ------------------------------------- */
+.controls button, .mode-btn {
+  transition: transform 90ms ease-out, box-shadow 90ms ease-out,
+    filter 120ms ease-out;
+}
+
+.controls button:hover, .mode-btn:hover {
+  filter: brightness(1.12);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 0 #6b3f04;
+}
+
+.controls button:active, .mode-btn:active {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 #6b3f04;
+  filter: brightness(0.96);
+}
+
+.controls button:focus-visible, .mode-btn:focus-visible,
+.gate-card button:focus-visible, .who:focus-visible {
+  outline: 3px solid #7ef0ff;
+  outline-offset: 2px;
+}
+
+.gate-card button { transition: filter 120ms ease-out, border-color 120ms ease-out; }
+.gate-card button:hover:not(:disabled) { filter: brightness(1.1); }
+
+.who { transition: filter 120ms ease-out, transform 90ms ease-out; }
+.who:hover { filter: brightness(1.1); transform: translateY(-1px); }
+
+/* the sign-in panel fades in rather than appearing */
+.gate { animation: gate-in 160ms ease-out; }
+.gate-card { animation: card-in 200ms cubic-bezier(0.2, 0.9, 0.3, 1); }
+
+@keyframes gate-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes card-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.985); }
+  to { opacity: 1; transform: none; }
+}
+
+.hint {
+  line-height: 2;
+  opacity: 0.86;
+}
+
+/* --- anyone who has asked for less motion gets less of it --------------- */
+@media (prefers-reduced-motion: reduce) {
+  .gate, .gate-card { animation: none; }
+  .controls button, .mode-btn, .who, #score { transition: none; }
+  .controls button:hover, .mode-btn:hover, .who:hover { transform: none; }
+  #score.ticking { transform: none; }
+}
+
+/* The hint is one line at every width. It used to re-wrap as the shell
+   narrowed, which changed the HUD height, which changed the board size,
+   which narrowed the shell again - the sizer could settle on a smaller
+   board than the window had room for. */
+.hint {
+  min-height: 2.4em;
+  white-space: normal;
+  font-size: clamp(7px, calc(var(--board) / 64), 11px);
+}
+
+.hint strong { color: var(--gold); font-weight: normal; }

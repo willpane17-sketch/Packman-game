@@ -52,11 +52,19 @@
     }
   }
 
+  // reused, because this is read every frame and the caller never keeps it
+  const shakeVec = { x: 0, y: 0 };
+
   function shakeOffset() {
-    if (state.shakeTime <= 0) return { x: 0, y: 0 };
+    if (state.shakeTime <= 0) {
+      shakeVec.x = 0; shakeVec.y = 0;
+      return shakeVec;
+    }
     const k = state.shakeTime / state.shakeMax;       // decays to nothing
     const a = state.shakeAmp * k * k;
-    return { x: (Math.random() - 0.5) * 2 * a, y: (Math.random() - 0.5) * 2 * a };
+    shakeVec.x = (Math.random() - 0.5) * 2 * a;
+    shakeVec.y = (Math.random() - 0.5) * 2 * a;
+    return shakeVec;
   }
 
   /* ------------------------------------------------------------------ */
@@ -134,13 +142,24 @@
   /* ------------------------------------------------------------------ */
   /* UPDATE + DRAW                                                       */
   /* ------------------------------------------------------------------ */
+  /**
+   * Drop entry `i` by moving the last one into its place. splice() shifts
+   * every element after the hole, so clearing a burst of hundreds of dead
+   * particles was quadratic; nothing here depends on draw order.
+   */
+  function dropAt(list, i) {
+    const last = list.length - 1;
+    if (i !== last) list[i] = list[last];
+    list.pop();
+  }
+
   function update(dt) {
     if (state.shakeTime > 0) state.shakeTime = Math.max(0, state.shakeTime - dt);
 
     for (let i = state.particles.length - 1; i >= 0; i--) {
       const p = state.particles[i];
       p.life -= dt;
-      if (p.life <= 0) { state.particles.splice(i, 1); continue; }
+      if (p.life <= 0) { dropAt(state.particles, i); continue; }
       p.x += p.vx * dt;
       p.y += p.vy * dt;
       p.vy += p.gravity * dt;
@@ -150,21 +169,22 @@
     for (let i = state.rings.length - 1; i >= 0; i--) {
       const r = state.rings[i];
       r.life -= dt;
-      if (r.life <= 0) { state.rings.splice(i, 1); continue; }
+      if (r.life <= 0) { dropAt(state.rings, i); continue; }
       const k = 1 - r.life / r.maxLife;
-      r.r = r.target * (1 - Math.pow(1 - k, 2));
+      const inv = 1 - k;
+      r.r = r.target * (1 - inv * inv);
     }
 
     for (let i = state.floats.length - 1; i >= 0; i--) {
       const f = state.floats[i];
       f.life -= dt;
-      if (f.life <= 0) state.floats.splice(i, 1);
+      if (f.life <= 0) dropAt(state.floats, i);
     }
 
     for (let i = state.flashes.length - 1; i >= 0; i--) {
       const f = state.flashes[i];
       f.life -= dt;
-      if (f.life <= 0) state.flashes.splice(i, 1);
+      if (f.life <= 0) dropAt(state.flashes, i);
     }
 
     if (state.announcement) {
@@ -186,11 +206,16 @@
       ctx.stroke();
     });
 
-    state.particles.forEach(function (p) {
+    // plain loop, and only touch fillStyle when the colour actually changes:
+    // a burst is usually two colours, so this is a couple of state changes
+    // instead of one per particle
+    let lastColor = null;
+    for (let i = 0; i < state.particles.length; i++) {
+      const p = state.particles[i];
       ctx.globalAlpha = Math.min(1, p.life / p.maxLife * 1.4);
-      ctx.fillStyle = p.color;
+      if (p.color !== lastColor) { ctx.fillStyle = p.color; lastColor = p.color; }
       ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size);
-    });
+    }
 
     ctx.textAlign = 'center';
     state.floats.forEach(function (f) {

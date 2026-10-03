@@ -63,11 +63,26 @@
     // layout cannot spin here. Phones are left alone: down there the d-pad
     // sits below the board and scrolling is the intended answer.
     if (!narrow) {
+      const cap = Math.min(widthCap, MAX_BOARD);
       for (let i = 0; i < 12; i++) {
         const over = root.scrollHeight - root.clientHeight;
         if (over <= 0 || applied <= MIN_BOARD) break;
         applied = Math.max(MIN_BOARD, applied - Math.max(2, Math.ceil(over * ASPECT)));
         root.style.setProperty('--board', applied + 'px');
+      }
+      // ...and claim back any room the two passes left on the table. The HUD
+      // scales with the board, so the largest board that fits cannot be
+      // solved directly; step up until it stops fitting, then step back.
+      for (let i = 0; i < 14 && applied < cap; i++) {
+        if (root.scrollHeight - root.clientHeight > 0) break;
+        const next = Math.min(cap, applied + 6);
+        if (next === applied) break;
+        root.style.setProperty('--board', next + 'px');
+        if (root.scrollHeight - root.clientHeight > 0) {
+          root.style.setProperty('--board', applied + 'px');   // that was too far
+          break;
+        }
+        applied = next;
       }
     }
   }

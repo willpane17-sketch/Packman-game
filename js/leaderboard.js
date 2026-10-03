@@ -221,12 +221,26 @@
       if (el.boardBtn) {
         el.boardBtn.addEventListener('click', function () { Leaderboard.open(); });
       }
+      if (el.gate) {
+        el.gate.addEventListener('mousedown', function (e) {
+          if (e.target === el.gate) Leaderboard.close();      // click the backdrop
+        });
+      }
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && Leaderboard.isOpen()) {
+          e.preventDefault();
+          Leaderboard.close();
+        }
+      });
 
+      // The game is never held behind this. A first-time player lands on the
+      // menu and can press Play; signing in is a button, not a gate, so the
+      // leaderboard stays entirely optional.
+      Accounts.restore();
+      finish();
       return resolveBackend().then(function () {
         if (el.where) el.where.textContent = backendLabel;
-        // already signed in from last time? straight through
-        if (Accounts.restore()) { finish(); return; }
-        Leaderboard.open();
+        updateWho();
       });
     },
 
@@ -241,6 +255,12 @@
       startPolling();
       if (el.name && !el.name.value) el.name.focus();
       else if (el.pass) el.pass.focus();
+    },
+
+    close: function () {
+      if (el.gate) el.gate.hidden = true;
+      stopPolling();
+      updateWho();
     },
 
     isOpen: function () { return !!(el.gate && !el.gate.hidden); },

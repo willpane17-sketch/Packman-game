@@ -460,32 +460,44 @@
       const whyLines = phase === 'reveal' ? wrap(ctx, cur.why, cardW - pad * 2) : [];
 
       const lh = 11 * UNIT, olh = 10 * UNIT;
-      let bodyH = 20 * UNIT + qLines.length * lh + 6 * UNIT;
+      let bodyH = 20 * UNIT + qLines.length * lh + 12 * UNIT;
       opt.forEach(function (l) { bodyH += l.length * olh + 7 * UNIT; });
       bodyH += 14 * UNIT + whyLines.length * olh + (phase === 'reveal' ? 10 * UNIT : 0);
       const cardH = bodyH + pad * 2;
       const y = Math.max(8 * UNIT, (H - cardH) / 2);
 
+      const r = 7 * UNIT;
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(x, y, cardW, cardH, r);
+      else ctx.rect(x, y, cardW, cardH);
       ctx.fillStyle = COLORS.panel;
-      ctx.fillRect(x, y, cardW, cardH);
+      ctx.fill();
       ctx.strokeStyle = COLORS.edge;
       ctx.lineWidth = 2 * UNIT;
-      ctx.strokeRect(x + UNIT, y + UNIT, cardW - 2 * UNIT, cardH - 2 * UNIT);
+      ctx.stroke();
+      // a tinted strip behind the header so the card has a clear top
+      ctx.save();
+      ctx.clip();
+      ctx.fillStyle = 'rgba(126, 240, 255, 0.09)';
+      ctx.fillRect(x, y, cardW, 17 * UNIT);
+      ctx.restore();
 
       let cy = y + pad + 8 * UNIT;
       ctx.textAlign = 'left';
       ctx.font = 'bold ' + Math.round(6 * UNIT) + 'px "Press Start 2P", monospace';
       ctx.fillStyle = COLORS.dim;
-      ctx.fillText('DIGITAL FORENSICS / ' + cur.t, x + pad, cy);
-      ctx.textAlign = 'right';
-      ctx.fillText('RIGHT = POWER-UP', x + cardW - pad, cy);
-      ctx.textAlign = 'left';
+      ctx.fillText('DIGITAL FORENSICS \u00b7 ' + cur.t, x + pad, cy);
       cy += 14 * UNIT;
 
       ctx.font = 'bold ' + Math.round(8 * UNIT) + 'px "Press Start 2P", monospace';
       ctx.fillStyle = '#ffffff';
       qLines.forEach(function (l) { ctx.fillText(l, x + pad, cy); cy += lh; });
-      cy += 6 * UNIT;
+      if (phase === 'ask') {
+        ctx.font = 'bold ' + Math.round(6 * UNIT) + 'px "Press Start 2P", monospace';
+        ctx.fillStyle = 'rgba(126, 224, 122, 0.75)';
+        ctx.fillText('RIGHT = POWER-UP   \u00b7   WRONG = SETBACK', x + pad, cy + 2 * UNIT);
+      }
+      cy += 12 * UNIT;
 
       ctx.font = 'bold ' + Math.round(7 * UNIT) + 'px "Press Start 2P", monospace';
       opt.forEach(function (lines, i) {
@@ -522,7 +534,7 @@
       ctx.textAlign = 'center';
       ctx.font = 'bold ' + Math.round(6 * UNIT) + 'px "Press Start 2P", monospace';
       ctx.fillStyle = COLORS.dim;
-      ctx.fillText(phase === 'ask' ? 'UP / DOWN OR 1-4     ENTER TO ANSWER'
+      ctx.fillText(phase === 'ask' ? 'UP / DOWN OR 1-4  \u00b7  ENTER TO ANSWER'
                                    : 'ENTER TO CARRY ON',
         x + cardW / 2, y + cardH - pad + 2 * UNIT);
       ctx.restore();

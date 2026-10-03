@@ -65,7 +65,7 @@
       key: 'easy',
       name: 'EASY',
       color: '#7ee07a',
-      blurb: '5 LIVES - SLOW ENEMIES - LOTS OF POWER-UPS',
+      blurb: 'SLOW ENEMIES - PLENTY OF ROOM TO LEARN',
       lives: 5,
       levels: 5,          // clear this many boards to win the run
       pac: 1.06,          // scales the burger's speed curve
@@ -83,7 +83,7 @@
       key: 'hard',
       name: 'HARD',
       color: '#ffd447',
-      blurb: '3 LIVES - FAST, AGGRESSIVE - DOUBLE SCORE',
+      blurb: 'FAST AND AGGRESSIVE - THE ARCADE RULES',
       lives: 3,
       levels: 8,
       pac: 1,
@@ -101,7 +101,7 @@
       key: 'extreme',
       name: 'EXTREME',
       color: '#ff5a5a',
-      blurb: '1 LIFE - OUTRUNS YOU - EVENTS EVERY FEW SECONDS',
+      blurb: 'THEY OUTRUN YOU - ONE MISTAKE AND IT IS OVER',
       lives: 1,
       levels: 3,
       pac: 1,
@@ -118,6 +118,18 @@
   };
 
   const DIFFICULTY_ORDER = ['easy', 'hard', 'extreme'];
+
+  /* Honour the system's reduced-motion setting: the menu stops breathing and
+     pulsing, and the burger's mouth holds open. Nothing that matters to play
+     is animation-dependent, so this costs the player nothing. */
+  let reducedMotion = false;
+  if (window.matchMedia) {
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+    reducedMotion = mq.matches;
+    const onChange = function (e) { reducedMotion = e.matches; };
+    if (mq.addEventListener) mq.addEventListener('change', onChange);
+    else if (mq.addListener) mq.addListener(onChange);
+  }
   const HIGH_KEY_PREFIX = 'tt-burger-high-';
 
   /** Scores are tracked per map and per mode - they are different games. */
@@ -262,7 +274,8 @@
     bonusTotal: 0,
     fireworks: [],
     confetti: [],
-    frame: 0
+    frame: 0,
+    menuTime: 0
   };
 
   const pac = {
@@ -526,6 +539,7 @@
   }
 
   function startGame() {
+    game.menuTime = 0;
     if (window.Quiz) Quiz.reset();
     game.score = 0;
     game.level = 1;
@@ -1330,29 +1344,219 @@
       bannerText('PRESS ENTER TO RETRY', H * 0.82, '#ffd447', 11);
       bannerText('1-3 MODE   LEFT/RIGHT MAP', H * 0.88, 'rgba(255,255,255,0.65)', 8);
     }
-    if (game.state === STATE.TITLE) {
-      ctx.fillStyle = 'rgba(0,0,0,0.7)';
-      ctx.fillRect(0, 0, W, H);
-      // the map has its own name in the picker below, so the headline is
-      // just the game
-      bannerText('BURGER MUNCH', H * 0.135, '#ffd447', 20);
-      const demoY = H * 0.235;
-      Sprites.drawPac(ctx, W / 2 - 60 * UNIT, demoY, 34 * UNIT, 'right', Math.abs(Math.sin(game.frame * 0.08)));
-      Sprites.drawGhost(ctx, W / 2 + 10 * UNIT, demoY, 30 * UNIT, '#e8412f',
-        Math.floor(game.frame / 8) % 2, 'normal', 'left', currentMap().skin);
-      Sprites.drawGhost(ctx, W / 2 + 60 * UNIT, demoY, 30 * UNIT, '#3fd8e8',
-        Math.floor(game.frame / 8) % 2, 'normal', 'left', currentMap().skin);
-      drawMapPicker(H * 0.355);
-      drawModeMenu(H * 0.47);
-      drawAchievementRow(H * 0.775);
-      bannerText('LEFT/RIGHT MAP   UP/DOWN OR 1-3 MODE', H * 0.845, '#ffffff', 8);
-      bannerText('PRESS ENTER TO DROP IN', H * 0.9, '#7ef0ff', 12);
+    if (game.state === STATE.TITLE) drawTitleScreen();
+
+    if (game.paused && game.state === STATE.PLAY) drawPauseScreen();
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* MENU SCREENS                                                        */
+  /* ------------------------------------------------------------------ */
+  /* Everything here is drawn, not DOM, so it scales with the board and
+     cannot end up overlapping the HUD. The rule throughout: one clear thing
+     to do (Play), with the two choices that change it sitting just above. */
+
+  function roundRect(x, y, w, h, r) {
+    const rr = Math.min(r, w / 2, h / 2);
+    ctx.beginPath();
+    if (ctx.roundRect) { ctx.roundRect(x, y, w, h, rr); return; }
+    ctx.moveTo(x + rr, y);
+    ctx.arcTo(x + w, y, x + w, y + h, rr);
+    ctx.arcTo(x + w, y + h, x, y + h, rr);
+    ctx.arcTo(x, y + h, x, y, rr);
+    ctx.arcTo(x, y, x + w, y, rr);
+    ctx.closePath();
+  }
+
+  /** A panel with a hairline edge - the one container style used everywhere. */
+  function panel(x, y, w, h, edge, fill) {
+    ctx.save();
+    ctx.fillStyle = fill || 'rgba(10, 26, 22, 0.82)';
+    roundRect(x, y, w, h, 7 * UNIT);
+    ctx.fill();
+    ctx.strokeStyle = edge || 'rgba(126, 240, 255, 0.28)';
+    ctx.lineWidth = 2 * UNIT;
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function menuText(text, y, color, size, align, x) {
+    ctx.save();
+    ctx.font = 'bold ' + Math.round(size * UNIT) + 'px "Press Start 2P", monospace';
+    ctx.textAlign = align || 'center';
+    ctx.fillStyle = color;
+    ctx.fillText(text, x === undefined ? W / 2 : x, y);
+    ctx.restore();
+  }
+
+  /** The wordmark: one offset shadow layer, then the face. No glow soup. */
+  function drawWordmark(y, scale) {
+    const size = 21 * UNIT * scale;
+    ctx.save();
+    ctx.font = 'bold ' + Math.round(size) + 'px "Press Start 2P", monospace';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#8a3b12';
+    ctx.fillText('BURGER MUNCH', W / 2, y + 3.5 * UNIT);
+    const grad = ctx.createLinearGradient(0, y - size * 0.8, 0, y + size * 0.25);
+    grad.addColorStop(0, '#ffe79a');
+    grad.addColorStop(0.55, '#ffd447');
+    grad.addColorStop(1, '#f2a03c');
+    ctx.fillStyle = grad;
+    ctx.fillText('BURGER MUNCH', W / 2, y);
+    ctx.restore();
+  }
+
+  /**
+   * Attract strip: the burger runs a lap being chased, with a pellet trail
+   * it eats as it goes. It shows the whole game in one glance.
+   */
+  function drawAttract(y) {
+    const t = game.menuTime;
+    const span = W + 160 * UNIT;
+    const x = ((t * 92 * UNIT) % span) - 80 * UNIT;
+    const skin = currentMap().skin;
+
+    ctx.save();
+    for (let i = 0; i < 16; i++) {
+      const px2 = 24 * UNIT + i * (W - 48 * UNIT) / 15;
+      if (px2 < x + 10 * UNIT) continue;              // eaten already
+      ctx.globalAlpha = 0.5;
+      ctx.fillStyle = '#9fe4ff';
+      ctx.beginPath();
+      ctx.arc(px2, y, 2.2 * UNIT, 0, Math.PI * 2);
+      ctx.fill();
     }
-    if (game.paused && game.state === STATE.PLAY) {
-      ctx.fillStyle = 'rgba(0,0,0,0.55)';
-      ctx.fillRect(0, 0, W, H);
-      bannerText('PAUSED', H / 2, '#ffffff', 20);
+    ctx.restore();
+
+    const chase = [['#e8412f', 0], ['#f7b2ff', 1], ['#4fd2ff', 2]];
+    for (let i = chase.length - 1; i >= 0; i--) {
+      const gx = x - (46 + chase[i][1] * 38) * UNIT;
+      if (gx < -40 * UNIT) continue;
+      Sprites.drawGhost(ctx, gx, y, 27 * UNIT, chase[i][0],
+        Math.floor(t * 8) % 2, 'normal', 'right', skin);
     }
+    Sprites.drawPac(ctx, x, y, 31 * UNIT, 'right',
+      reducedMotion ? 0.6 : Math.abs(Math.sin(t * 7)));
+  }
+
+  /** Map row: name, blurb and a dot per map so the choice is obvious. */
+  function drawMapCard(top) {
+    const map = currentMap();
+    const h = H * 0.108, w = W * 0.78, x = (W - w) / 2;
+    panel(x, top, w, h, 'rgba(126, 240, 255, 0.3)');
+    menuText('MAP', top + h * 0.26, 'rgba(160, 200, 196, 0.9)', 7);
+    menuText(map.name, top + h * 0.6, '#ffd447', 13);
+    menuText(map.blurb, top + h * 0.86, 'rgba(206, 228, 224, 0.72)', 6);
+
+    // the arrows, nudged outward on a slow cycle so they read as controls
+    const nudge = reducedMotion ? 0 : Math.sin(game.menuTime * 3) * 2 * UNIT;
+    menuText('\u2039', top + h * 0.62, '#7ef0ff', 16, 'center', x - 9 * UNIT - nudge);
+    menuText('\u203a', top + h * 0.62, '#7ef0ff', 16, 'center', x + w + 9 * UNIT + nudge);
+
+    const dots = Maze.MAPS.length, dy = top + h + 9 * UNIT;
+    for (let i = 0; i < dots; i++) {
+      const dx = W / 2 + (i - (dots - 1) / 2) * 11 * UNIT;
+      ctx.beginPath();
+      ctx.arc(dx, dy, 2.6 * UNIT, 0, Math.PI * 2);
+      ctx.fillStyle = Maze.MAPS[i].key === game.mapKey ? '#ffd447' : 'rgba(255,255,255,0.26)';
+      ctx.fill();
+    }
+  }
+
+  /** The three modes side by side, so the whole choice is visible at once. */
+  function drawModePills(top) {
+    const h = H * 0.058, gap = 7 * UNIT;
+    const w = (W * 0.78 - gap * 2) / 3, x0 = (W - W * 0.78) / 2;
+    menuText('MODE', top - 7 * UNIT, 'rgba(160, 200, 196, 0.9)', 7);
+    DIFFICULTY_ORDER.forEach(function (key, i) {
+      const d = DIFFICULTIES[key];
+      const on = key === game.difficulty;
+      const x = x0 + i * (w + gap);
+      ctx.save();
+      ctx.fillStyle = on ? d.color : 'rgba(16, 38, 32, 0.8)';
+      roundRect(x, top, w, h, 5 * UNIT);
+      ctx.fill();
+      ctx.strokeStyle = on ? '#ffffff' : 'rgba(255,255,255,0.16)';
+      ctx.lineWidth = 2 * UNIT;
+      ctx.stroke();
+      ctx.restore();
+      menuText(d.name, top + h * 0.64, on ? '#0d1411' : 'rgba(226, 240, 236, 0.55)',
+        on ? 10 : 9, 'center', x + w / 2);
+    });
+    const sel = diff();
+    menuText(sel.blurb, top + h + 11 * UNIT, 'rgba(206, 228, 224, 0.8)', 6);
+    menuText(String(sel.lives) + ' LIVES  \u00b7  ' + sel.levels + ' BOARDS  \u00b7  SCORE x' + sel.scoreMul,
+      top + h + 21 * UNIT, sel.color, 6);
+  }
+
+  /** The one thing to press. Everything else on the menu is optional. */
+  function drawPlayButton(top) {
+    const w = W * 0.5, h = H * 0.072, x = (W - w) / 2;
+    const beat = reducedMotion ? 0 : (0.5 + 0.5 * Math.sin(game.menuTime * 3.4));
+    ctx.save();
+    ctx.globalAlpha = 0.28 + beat * 0.22;
+    ctx.fillStyle = '#ffd447';
+    roundRect(x - 4 * UNIT, top - 4 * UNIT, w + 8 * UNIT, h + 8 * UNIT, 9 * UNIT);
+    ctx.fill();
+    ctx.restore();
+
+    ctx.save();
+    const g = ctx.createLinearGradient(0, top, 0, top + h);
+    g.addColorStop(0, '#ffe07a');
+    g.addColorStop(1, '#f0a92c');
+    ctx.fillStyle = g;
+    roundRect(x, top, w, h, 7 * UNIT);
+    ctx.fill();
+    ctx.strokeStyle = '#7a4c05';
+    ctx.lineWidth = 2 * UNIT;
+    ctx.stroke();
+    ctx.restore();
+    menuText('PLAY', top + h * 0.66, '#3a2000', 17);
+    menuText('PRESS ENTER', top + h + 13 * UNIT, 'rgba(206, 228, 224, 0.78)', 7);
+  }
+
+  function drawTitleScreen() {
+    const fade = Math.min(1, game.menuTime * 2.2);     // one gentle entrance
+    ctx.save();
+    const bg = ctx.createLinearGradient(0, 0, 0, H);
+    bg.addColorStop(0, 'rgba(4, 14, 12, 0.93)');
+    bg.addColorStop(0.5, 'rgba(6, 20, 17, 0.88)');
+    bg.addColorStop(1, 'rgba(3, 10, 9, 0.95)');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.globalAlpha = fade;
+    const rise = (1 - fade) * 14 * UNIT;
+    ctx.translate(0, rise);
+
+    const breathe = reducedMotion ? 1 : 1 + Math.sin(game.menuTime * 1.8) * 0.012;
+    drawWordmark(H * 0.125, breathe);
+    menuText('A FORTNITE ARCADE MAZE', H * 0.163, 'rgba(126, 240, 255, 0.75)', 7);
+
+    drawAttract(H * 0.235);
+    drawMapCard(H * 0.3);
+    drawModePills(H * 0.475);
+    drawPlayButton(H * 0.63);
+
+    menuText('\u2190 \u2192 MAP    \u2191 \u2193 OR 1 2 3 MODE', H * 0.775,
+      'rgba(206, 228, 224, 0.55)', 6);
+    drawAchievementRow(H * 0.845);
+
+    const who = window.Leaderboard && Leaderboard.who();
+    menuText(who ? 'SIGNED IN AS ' + who.toUpperCase() : 'PLAYING AS GUEST \u00b7 SIGN IN FOR THE BOARD',
+      H * 0.945, who ? 'rgba(126, 224, 122, 0.8)' : 'rgba(206, 228, 224, 0.4)', 6);
+    ctx.restore();
+  }
+
+  function drawPauseScreen() {
+    ctx.save();
+    ctx.fillStyle = 'rgba(3, 10, 9, 0.72)';
+    ctx.fillRect(0, 0, W, H);
+    const w = W * 0.64, h = H * 0.2, x = (W - w) / 2, y = H * 0.4;
+    panel(x, y, w, h, 'rgba(255, 212, 71, 0.4)');
+    menuText('PAUSED', y + h * 0.42, '#ffd447', 19);
+    menuText('ENTER OR P TO CARRY ON', y + h * 0.74, 'rgba(206, 228, 224, 0.72)', 7);
+    ctx.restore();
   }
 
 
@@ -2374,9 +2578,28 @@
     return c.toDataURL();
   })();
 
+  /* The score counts up to its new value rather than snapping. It is driven
+     from the frame loop, but only writes to the DOM when the rendered number
+     actually changes, so it is not a per-frame DOM write. */
+  let shownScore = 0;
+
+  function tickScore(dt) {
+    if (shownScore === game.score) return;
+    if (reducedMotion) { shownScore = game.score; }
+    else {
+      const gap = game.score - shownScore;
+      if (Math.abs(gap) < 2) shownScore = game.score;
+      // ~12% of the gap per frame at 60fps, with a floor so big jumps land
+      else shownScore += Math.sign(gap) * Math.max(1, Math.ceil(Math.abs(gap) * Math.min(1, dt * 7)));
+    }
+    hud.score.textContent = String(Math.max(0, shownScore)).padStart(6, '0');
+    hud.score.classList.add('ticking');
+  }
+
   function updateHud() {
     renderModeButtons();
-    hud.score.textContent = String(game.score).padStart(6, '0');
+    if (game.score < shownScore) shownScore = game.score;     // a reset or a new run
+    hud.score.textContent = String(Math.max(0, shownScore)).padStart(6, '0');
     hud.high.textContent = String(game.high).padStart(6, '0');
     hud.level.textContent = game.level + '/' + diff().levels;
     // Draw at most a handful of icons and count the rest, so a long run of
@@ -2424,6 +2647,9 @@
   }
 
   function renderLootRow() {
+    // the stat hides itself while empty rather than showing a bare label
+    const slot = hud.loot.closest ? hud.loot.closest('.stat') : null;
+    if (slot) slot.style.visibility = game.lootHistory.length ? 'visible' : 'hidden';
     hud.loot.innerHTML = '';
     game.lootHistory.slice(-7).forEach(function (idx) {
       const c = document.createElement('canvas');
@@ -2446,6 +2672,9 @@
     last = now;
     if (dt > 0.05) dt = 0.05;      // clamp after a tab switch
     game.frame++;
+    // the menu has its own clock so its animation never depends on whether a
+    // board is running behind it
+    if (game.state === STATE.TITLE) game.menuTime += dt;
 
     const quizUp = !!(window.Quiz && Quiz.active());
     if (window.Quiz) Quiz.tick(dt);
@@ -2454,6 +2683,8 @@
       FX.update(dt);
       Achievements.update(dt);
     }
+    tickScore(dt);
+    if (shownScore === game.score) hud.score.classList.remove('ticking');
     draw(dt);
     if (window.Quiz) Quiz.draw(ctx, W, H, UNIT);
     pollPads();
