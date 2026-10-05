@@ -295,67 +295,88 @@
   }
 
 
-  // Raven: the hooded silhouette, bone beak and glowing eyes. Shares the
-  // round head shape with Tomato Head so both read the same way in play.
-  const RAVEN = { light: '#3a2a52', base: '#241a33', dark: '#120c1e', spec: '#584077' };
-  const BEAK = '#cdc5b0';
-  const BEAK_D = '#8e876f';
-  const RAVEN_GLOW = '#c6a6ff';
+  // Raven: the hooded figure from the reference. A purple hood with a black
+  // face opening, big white eyes with purple pupils, a purple scarf over the
+  // mouth, blue feathers on one shoulder, a strap with a silver buckle across
+  // a dark cloak, and a ragged hem. The band near the hem carries this enemy's
+  // identity colour, so four of them in a maze still read apart.
+  //
+  // K outline   L/h/H/d hood, light to dark   F face opening
+  // S/s scarf   C/c cloak   B/b feathers   T strap   M buckle   X/x band
+  const RAVEN_BODY = [
+    '........KKKKKK........',
+    '......KKLLLhhhKK......',
+    '.....KLLhhhhhhhdK.....',
+    '....KLhhhhhhhhhhdK....',
+    '...KLhhhhhhhhhhhhdK...',
+    '...KhhhHHHHHHHHhhdK...',
+    '..KhhHFFFFFFFFFFHhdK..',
+    '..KhHFFFFFFFFFFFFHdK..',
+    '..KhHFFFFFFFFFFFFHdK..',
+    '..KhHFFFFFFFFFFFFHdK..',
+    '..KhHFFFFFFFFFFFFHdK..',
+    '..KdHFFFFFFFFFFFFHdK..',
+    '.BKdHsSSSSSSSSSSsHdK..',
+    'BbKsSSSSSSSSSSSSSSsK..',
+    '.BbKsSSSSSSSSSSSSsK...',
+    '..BKTTCCCCCCCCCCCCK...',
+    '..KcCCTTMCCCCCCCCCcK..',
+    '..KcCCCCCCTTCCCCCCcK..',
+    '.KxXXXXXXXXXXXXXXXXxK.',
+    '.KcCCCCCCCCCCCCCCCCcK.'
+  ];
+  // the hem flutters between two shapes on the walk cycle
+  const RAVEN_HEM = [
+    ['..KCCK..KCCCCK..KCCK..', '...KK....KKKK....KK...'],
+    ['...KCCK.KCCCCK.KCCK...', '....KK...KKKK...KK....']
+  ];
 
-  function ravenTones(mode) {
-    if (mode === 'fright') return FRIGHT;
-    if (mode === 'flash') return FLASHT;
-    return RAVEN;
+  function ravenPalette(color, mode) {
+    if (mode === 'fright' || mode === 'flash') {
+      const t = mode === 'fright' ? FRIGHT : FLASHT;
+      const band = mode === 'fright' ? '#1b2ba8' : '#c8c8c8';
+      return {
+        K: mode === 'fright' ? '#070c33' : '#7a7a7a', L: t.spec, h: t.light, H: t.base,
+        d: t.dark, F: mode === 'fright' ? '#0b1250' : '#9a9a9a', S: t.light, s: t.base,
+        C: t.dark, c: t.dark, B: t.light, b: t.base, T: t.dark, M: t.spec,
+        X: band, x: mix(band, '#000000', 0.45)
+      };
+    }
+    return {
+      K: '#120a1e', L: '#b48af0', h: '#8a5ccf', H: '#6b3fb0', d: '#47287f',
+      F: '#07040c', S: '#a457e8', s: '#7433b8', C: '#3b2468', c: '#271747',
+      B: '#5468f5', b: '#3140b8', T: '#6e3d1c', M: '#d4d8e0',
+      X: color, x: mix(color, '#000000', 0.45)
+    };
+  }
+
+  function paintRows(ctx, rows, y0, pal) {
+    for (let r = 0; r < rows.length; r++) {
+      const row = rows[r];
+      for (let x = 0; x < row.length; x++) {
+        const ch = row[x];
+        if (ch === '.') continue;
+        let end = x;
+        while (end + 1 < row.length && row[end + 1] === ch) end++;
+        px(ctx, x, y0 + r, pal[ch], end - x + 1, 1);
+        x = end;
+      }
+    }
   }
 
   function paintRaven(ctx, color, frame, mode) {
-    const t = ravenTones(mode);
-
-    // cloak collar in this ghost's colour
-    const collar = mode === 'fright' ? '#1b2ba8' : (mode === 'flash' ? '#c8c8c8' : color);
-    const collarD = mix(mode === 'fright' ? '#1b2ba8' : (mode === 'flash' ? '#c8c8c8' : color), '#000000', 0.5);
-    px(ctx, 3, 17, collarD, 16, 5);
-    px(ctx, 4, 17, collar, 14, 3);
-    px(ctx, 2, 19, collarD, 18, 2);
-    px(ctx, 3, 19, collar, 16, 1);
-
-    // hood
-    for (let y = 0; y < G_H; y++) {
-      for (let x = 0; x < G_W; x++) {
-        const dx = x + 0.5 - HEAD_CX;
-        const dy = y + 0.5 - HEAD_CY;
-        const d = Math.sqrt(dx * dx + dy * dy);
-        if (d > HEAD_R) continue;
-        px(ctx, x, y, d > HEAD_R - 1.3 ? t.dark : (d > HEAD_R - 3.2 ? t.base : t.light));
-      }
-    }
-    // feathered crest and hood peak
-    px(ctx, 9, 0, t.dark, 4, 2);
-    px(ctx, 8, 1, t.base, 6, 2);
-    px(ctx, 6, 2, t.dark, 3, 1);
-    px(ctx, 13, 2, t.dark, 3, 1);
-    px(ctx, 4, 4, t.dark, 3, 2);
-    px(ctx, 15, 4, t.dark, 3, 2);
-    // the hood's inner shadow, framing the face
-    px(ctx, 5, 6, t.dark, 12, 1);
-    px(ctx, 4, 7, t.dark, 2, 4);
-    px(ctx, 16, 7, t.dark, 2, 4);
-
-    if (mode === 'fright' || mode === 'flash') return;
-
-    // wing feathers at the shoulders
-    px(ctx, 2, 14, t.light, 3, 3);
-    px(ctx, 17, 14, t.light, 3, 3);
-    px(ctx, 2, 15, t.dark, 2, 1);
-    px(ctx, 18, 15, t.dark, 2, 1);
+    const pal = ravenPalette(color, mode);
+    paintRows(ctx, RAVEN_BODY, 0, pal);
+    paintRows(ctx, RAVEN_HEM[frame ? 1 : 0], RAVEN_BODY.length, pal);
   }
 
   function paintRavenFace(ctx, dir, mode) {
     if (mode === 'fright' || mode === 'flash') {
+      // the scared face, inside the hood opening
       const fg = mode === 'flash' ? '#d02020' : '#ffffff';
-      px(ctx, 6, 8, fg, 2, 2);
-      px(ctx, 14, 8, fg, 2, 2);
-      for (let x = 5; x <= 16; x++) px(ctx, x, 13 + (x % 2 === 0 ? 0 : 1), fg);
+      px(ctx, 7, 8, fg, 2, 2);
+      px(ctx, 13, 8, fg, 2, 2);
+      for (let x = 6; x <= 15; x++) px(ctx, x, 10 + (x % 2 === 0 ? 0 : 1), fg);
       return;
     }
     let ox = 0, oy = 0;
@@ -364,23 +385,19 @@
     if (dir === 'up') oy = -1;
     if (dir === 'down') oy = 1;
 
-    // glowing eyes
-    px(ctx, 5 + ox, 8 + oy, RAVEN_GLOW, 4, 3);
-    px(ctx, 13 + ox, 8 + oy, RAVEN_GLOW, 4, 3);
-    px(ctx, 6 + ox, 9 + oy, '#ffffff', 2, 1);
-    px(ctx, 14 + ox, 9 + oy, '#ffffff', 2, 1);
-
-    // the long bone beak
-    px(ctx, 8, 11, BEAK, 6, 2);
-    px(ctx, 9, 13, BEAK, 4, 2);
-    px(ctx, 10, 15, BEAK, 3, 2);
-    px(ctx, 10, 17, BEAK, 2, 1);
-    px(ctx, 8, 12, BEAK_D, 6, 1);
-    px(ctx, 9, 14, BEAK_D, 4, 1);
-    px(ctx, 10, 16, BEAK_D, 3, 1);
-    px(ctx, 11, 18, BEAK_D, 1, 1);
-    // stitched seam across the mask
-    px(ctx, 8, 11, '#efe9d8', 6, 1);
+    // big white eyes, corners softened so they read round
+    px(ctx, 6, 7, '#ffffff', 4, 5);
+    px(ctx, 12, 7, '#ffffff', 4, 5);
+    const SOFT = '#d9c8ff';
+    px(ctx, 6, 7, SOFT, 1, 1); px(ctx, 9, 7, SOFT, 1, 1);
+    px(ctx, 6, 11, SOFT, 1, 1); px(ctx, 9, 11, SOFT, 1, 1);
+    px(ctx, 12, 7, SOFT, 1, 1); px(ctx, 15, 7, SOFT, 1, 1);
+    px(ctx, 12, 11, SOFT, 1, 1); px(ctx, 15, 11, SOFT, 1, 1);
+    // narrow purple slits that follow the direction of travel
+    px(ctx, 8 + ox, 8 + oy, '#a020d0', 1, 3);
+    px(ctx, 13 + ox, 8 + oy, '#a020d0', 1, 3);
+    px(ctx, 8 + ox, 10 + oy, '#5e1288', 1, 1);
+    px(ctx, 13 + ox, 10 + oy, '#5e1288', 1, 1);
   }
 
   /* ------------------------------------------------------------------ */
