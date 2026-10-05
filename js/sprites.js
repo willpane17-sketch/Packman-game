@@ -634,8 +634,28 @@
       paintTomato(c.ctx, color, frame, mode);
       paintFace(c.ctx, dir, mode);
     }
+    outline(c.canvas);
     ghostCache[key] = c.canvas;
     return c.canvas;
+  }
+
+  /** One dark pixel around every opaque pixel, so a sprite reads against a busy map. */
+  function outline(canvas) {
+    const x = canvas.getContext('2d');
+    const w = canvas.width, h = canvas.height;
+    const img = x.getImageData(0, 0, w, h), d = img.data, a = new Uint8Array(w * h);
+    for (let i = 0; i < w * h; i++) a[i] = d[i * 4 + 3];
+    for (let py = 0; py < h; py++) {
+      for (let px2 = 0; px2 < w; px2++) {
+        const i = py * w + px2;
+        if (a[i]) continue;
+        if ((px2 > 0 && a[i - 1]) || (px2 < w - 1 && a[i + 1]) ||
+            (py > 0 && a[i - w]) || (py < h - 1 && a[i + w])) {
+          d[i * 4] = 10; d[i * 4 + 1] = 6; d[i * 4 + 2] = 12; d[i * 4 + 3] = 235;
+        }
+      }
+    }
+    x.putImageData(img, 0, 0);
   }
 
   function drawGhost(ctx, cx, cy, size, color, frame, mode, dir, skin) {

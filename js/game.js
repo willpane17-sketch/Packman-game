@@ -962,7 +962,7 @@
     }
 
     // a satisfying popup for anything worth noticing
-    if (o.x !== undefined && !o.quiet && total >= 100) {
+    if (o.x !== undefined && !o.quiet && (total >= 100 || o.pop)) {
       FX.float(o.x, o.y, '+' + total, o.color || '#ffd447', { size: total >= 800 ? 13 : 10 });
     }
 
@@ -1015,7 +1015,7 @@
       Sound.waka();
       FX.burst(pac.x, pac.y, ['#4fc3ff', '#eafaff'], { count: 4, speed: 45, size: 2, life: 0.3 });
     } else {
-      addScore(50, 'pellets', { x: pac.x, y: pac.y, color: '#ffd447' });
+      addScore(50, 'pellets', { x: pac.x, y: pac.y, color: '#ffd447', pop: true });
       Sound.power();
       FX.burst(pac.x, pac.y, ['#f5c132', '#fff3b0'], { count: 16, speed: 120, size: 3 });
       FX.ring(pac.x, pac.y, '#f5c132', TILE * 3, 0.5, 3);
@@ -1182,6 +1182,7 @@
         if (t === T.PELLET) {
           Sprites.drawCoin(ctx, centerOf(x), centerOf(y), TILE * 0.46);
         } else if (t === T.POWER) {
+          mGlow(centerOf(x), centerOf(y), TILE * 1.1, '#ffd447', 0.18 + 0.22 * pulse);
           Sprites.drawPotion(ctx, centerOf(x), centerOf(y), TILE * 1.05, pulse);
         }
       }
@@ -1210,6 +1211,7 @@
         const flashing = game.frightTimer < 2 && Math.floor(game.frightTimer * 6) % 2 === 0;
         mode = flashing ? 'flash' : 'fright';
       }
+      if (mode !== 'eaten') mShadow(g.x, g.y + TILE * 0.55, TILE * 0.36, 0.32);
       Sprites.drawGhost(ctx, g.x, g.y, TILE * 1.15, g.color, g.frame, mode, g.dir,
         currentMap().skin);
     });
@@ -1219,7 +1221,10 @@
     const open = game.state === STATE.PLAY || game.state === STATE.READY
       ? (pac.moving ? Math.abs(Math.sin(pac.mouth)) : 0.35)
       : 0.35;
-    Sprites.drawPac(ctx, pac.x, pac.y, TILE * 1.35, pac.dir, open);
+    mShadow(pac.x, pac.y + TILE * 0.58, TILE * 0.42, 0.4);
+    mGlow(pac.x, pac.y, TILE * 0.95, '#ffd447', 0.2);
+    const bob = pac.moving && !reducedMotion ? Math.round(Math.abs(Math.sin(pac.mouth)) * -UNIT) : 0;
+    Sprites.drawPac(ctx, pac.x, pac.y + bob, TILE * 1.35, pac.dir, open);
   }
 
   function drawPopups(dt) {

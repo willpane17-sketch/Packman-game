@@ -43,7 +43,11 @@
   /* ------------------------------------------------------------------ */
 
   /** @param {number} amp pixels of throw @param {number} time seconds */
+  const calm = !!(global.matchMedia && global.matchMedia('(prefers-reduced-motion: reduce)').matches);
+
   function shake(amp, time) {
+    if (calm) return;
+    amp = Math.min(amp, 3);
     // a new shake never cuts an existing stronger one short
     if (amp >= state.shakeAmp || state.shakeTime <= 0) {
       state.shakeAmp = amp;

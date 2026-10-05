@@ -797,3 +797,9 @@ canvas#game { border-radius: 2px; }
     justify-content: center;
   }
 }
+
+/* footer: the keys are what matter, the words step back */
+.hint { color: rgba(206, 228, 224, 0.5); }
+.hint kbd { color: #fff3bd; border-color: rgba(255, 212, 71, 0.55); }
+/* the high score shimmers now and then, not all the time */
+#highscore { animation-duration: 9s; }
