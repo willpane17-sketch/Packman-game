@@ -48,15 +48,16 @@
 
   <div class="shell">
     <header class="topbar">
-      <div class="stat">
+      <div class="stat hud-score">
         <span class="label">Score</span>
         <span class="value" id="score">000000</span>
+        <span class="loot-row" id="loot-row" aria-label="Loot collected"></span>
       </div>
       <div class="stat title-block">
         <h1>Burger Munch <span id="map-title">Tilted Towers</span></h1>
       </div>
-      <div class="stat right">
-        <span class="label">High</span>
+      <div class="stat right hud-high">
+        <span class="label"><i class="px-icon px-trophy" aria-hidden="true"></i>High score</span>
         <span class="value" id="highscore">000000</span>
         <button class="who" id="who" type="button" hidden></button>
       </div>
@@ -67,33 +68,29 @@
     </div>
 
     <footer class="bottombar">
-      <div class="stat">
-        <span class="label">Lives</span>
+      <div class="stat module">
+        <span class="label"><i class="px-icon px-heart" aria-hidden="true"></i>Lives</span>
         <span class="value" id="lives"></span>
       </div>
-      <div class="stat">
-        <span class="label">Storm</span>
+      <div class="stat module">
+        <span class="label"><i class="px-icon px-storm" aria-hidden="true"></i>Storm</span>
         <span class="value">Lv <span id="level">1</span></span>
       </div>
-      <div class="stat">
-        <span class="label">Map</span>
+      <div class="stat module module-map">
+        <span class="label"><i class="px-icon px-pin" aria-hidden="true"></i>Map</span>
         <button class="mode-btn map-btn" id="map-btn" type="button"
                 title="Click to change map (or press left and right)">Tilted Towers</button>
       </div>
-      <div class="stat">
-        <span class="label">Mode</span>
+      <div class="stat module">
+        <span class="label"><i class="px-icon px-star" aria-hidden="true"></i>Mode</span>
         <button class="mode-btn" id="mode-btn" type="button"
                 title="Click to change difficulty (or press 1, 2, 3)">Easy</button>
       </div>
-      <div class="stat">
-        <span class="label">Loot</span>
-        <span class="value" id="loot-row"></span>
-      </div>
       <div class="controls">
-        <button id="pause-btn" type="button">⏸ Pause</button>
-        <button id="fullscreen-btn" type="button">⛶ Full screen</button>
-        <button id="mute-btn" type="button">🔊 Sound on</button>
-        <button id="board-btn" type="button">🏆 Board</button>
+        <button id="pause-btn" type="button" title="Pause / resume (P)">Pause</button>
+        <button id="mute-btn" type="button" title="Sound on / off (M)">Sound on</button>
+        <button id="fullscreen-btn" type="button" title="Full screen (F)">Full screen</button>
+        <button id="board-btn" type="button" title="Leaderboard and sign in">Board</button>
       </div>
     </footer>
 

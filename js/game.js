@@ -64,6 +64,8 @@
     easy: {
       key: 'easy',
       name: 'EASY',
+      stars: 1,
+      tag: 'LEARN',
       color: '#7ee07a',
       blurb: 'SLOW ENEMIES - PLENTY OF ROOM TO LEARN',
       lives: 5,
@@ -82,6 +84,8 @@
     hard: {
       key: 'hard',
       name: 'HARD',
+      stars: 2,
+      tag: 'CHALLENGE',
       color: '#ffd447',
       blurb: 'FAST AND AGGRESSIVE - THE ARCADE RULES',
       lives: 3,
@@ -100,6 +104,8 @@
     extreme: {
       key: 'extreme',
       name: 'EXTREME',
+      stars: 3,
+      tag: 'CHAOS',
       color: '#ff5a5a',
       blurb: 'THEY OUTRUN YOU - ONE MISTAKE AND IT IS OVER',
       lives: 1,
@@ -540,6 +546,11 @@
 
   function startGame() {
     game.menuTime = 0;
+    // leaving the menu drops its hover state; otherwise the hand cursor would
+    // stay up over the board until the mouse next moved
+    menu.hover = null;
+    menu.pressed = null;
+    canvas.style.cursor = '';
     if (window.Quiz) Quiz.reset();
     game.score = 0;
     game.level = 1;
@@ -1164,7 +1175,7 @@
   /* DRAWING                                                             */
   /* ------------------------------------------------------------------ */
   function drawPellets() {
-    const pulse = 0.5 + 0.5 * Math.sin(game.frame * 0.12);
+    const pulse = reducedMotion ? 0.5 : 0.5 + 0.5 * Math.sin(game.frame * 0.12);
     for (let y = 0; y < Maze.ROWS; y++) {
       for (let x = 0; x < Maze.COLS; x++) {
         const t = game.grid[y][x];
@@ -1247,6 +1258,15 @@
     ctx.save();
     ctx.translate(shake.x, shake.y);
 
+    // on the menu the map drifts a few whole pixels behind the panel
+    const par = game.state === STATE.TITLE ? menuParallax() : null;
+    if (par) {
+      ctx.fillStyle = '#0b1512';
+      ctx.fillRect(0, 0, W, H);
+      ctx.save();
+      ctx.translate(par.x, par.y);
+    }
+
     if (game.state === STATE.LEVEL_CLEAR) {
       // flash the city between normal and blown-out white
       const flash = Math.floor(game.flashTimer * 6) % 2 === 0;
@@ -1264,6 +1284,7 @@
 
     if (game.state !== STATE.LEVEL_CLEAR) drawPellets();
     drawSecrets();
+    if (par) ctx.restore();
 
     if (game.loot && game.state === STATE.PLAY) {
       const bounce = Math.sin(game.frame * 0.1) * 1.5;
@@ -1350,201 +1371,903 @@
   }
 
   /* ------------------------------------------------------------------ */
-  /* MENU SCREENS                                                        */
+  /* MAIN MENU                                                           */
   /* ------------------------------------------------------------------ */
-  /* Everything here is drawn, not DOM, so it scales with the board and
-     cannot end up overlapping the HUD. The rule throughout: one clear thing
-     to do (Play), with the two choices that change it sitting just above. */
+  /* Drawn into the game canvas, so it scales with the board and can never
+     fall out of step with it. Everything is built from one container - a
+     pixel box with stepped corners, a chunky drop and a lit top row - so
+     every section reads as part of the same machine.
 
-  function roundRect(x, y, w, h, r) {
-    const rr = Math.min(r, w / 2, h / 2);
-    ctx.beginPath();
-    if (ctx.roundRect) { ctx.roundRect(x, y, w, h, rr); return; }
-    ctx.moveTo(x + rr, y);
-    ctx.arcTo(x + w, y, x + w, y + h, rr);
-    ctx.arcTo(x + w, y + h, x, y + h, rr);
-    ctx.arcTo(x, y + h, x, y, rr);
-    ctx.arcTo(x, y, x + w, y, rr);
+     The layout runs top to bottom in UNITs (the board is 448 x 496 of them):
+     title, the cast, the map, the difficulty, its numbers, PLAY, progress
+     and today's challenge. PLAY is the only thing that glows all the time. */
+
+  const U = UNIT;
+  const MENU_FONT = '"Press Start 2P", monospace';
+  const CAST_COLORS = ['#e8412f', '#f7b2ff', '#4fd2ff', '#f0a03c'];
+  const MAP_ACCENT = { tilted: '#9fd4ff', divot: '#e8b062', lake: '#5fd8f0', park: '#8ee07a' };
+  // the cards get their own accents: Hard's game colour is the same gold as
+  // PLAY, and a selected card should never compete with the button
+  const MODE_ACCENT = { easy: '#7ee07a', hard: '#f2a03c', extreme: '#ff5a5a' };
+  const MODE_IDS = DIFFICULTY_ORDER.map(function (k) { return 'mode:' + k; });
+  const ACH_IDS = Achievements.LIST.map(function (_, i) { return 'ach:' + i; });
+
+  // content column inside the main panel
+  const PANEL_X = 10 * U, PANEL_Y = 8 * U, PANEL_W = 428 * U, PANEL_H = 480 * U;
+  const CX0 = 26 * U, CX1 = 422 * U, CW = CX1 - CX0;
+
+  const CHALLENGES = [
+    'CLEAR A BOARD WITHOUT LOSING A LIFE',
+    'GET 5 FORENSICS QUESTIONS RIGHT',
+    'EAT ALL FOUR ENEMIES FROM ONE CHUG JUG',
+    'BUILD A x5 COMBO',
+    'FIND A SECRET VAULT',
+    'CLEAR A BOARD IN UNDER 90 SECONDS',
+    'BEAT YOUR HIGH SCORE ON THIS MAP'
+  ];
+  // one per calendar day, worked out once - it is a suggestion, not tracked
+  const CHALLENGE = (function () {
+    const d = new Date();
+    const day = Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 86400000);
+    return CHALLENGES[day % CHALLENGES.length];
+  })();
+
+  const PIX = {
+    star: ['..#..', '.###.', '#####', '.###.', '.#.#.'],
+    heart: ['.##.##.', '#######', '#######', '.#####.', '..###..', '...#...'],
+    check: ['.....##', '....##.', '##.##..', '.###...', '..#....'],
+    trophy: ['#######', '#.###.#', '.#####.', '..###..', '...#...', '..###..', '.#####.'],
+    flag: ['##....', '####..', '######', '####..', '##....', '#.....', '#.....'],
+    diamond: ['.#.', '###', '.#.']
+  };
+
+  const menu = {
+    hover: null, pressed: null, audioReady: false,
+    lastMap: null, mapPrev: null, mapDir: 0, mapK: 1,
+    lastMode: null, modePrev: null, modeK: 1,
+    mx: 0, my: 0, tx: 0, ty: 0,
+    regions: [], regionCount: 0
+  };
+
+  /* ---- small helpers ------------------------------------------------- */
+
+  function clamp01(v) { return v < 0 ? 0 : (v > 1 ? 1 : v); }
+  function easeOut(k) { const i = 1 - clamp01(k); return 1 - i * i * i; }
+
+  const colorCache = {};
+  function hexA(hex, a) {
+    const key = hex + a;
+    let c = colorCache[key];
+    if (!c) {
+      const v = parseInt(hex.slice(1), 16);
+      c = colorCache[key] = 'rgba(' + ((v >> 16) & 255) + ',' + ((v >> 8) & 255) + ',' + (v & 255) + ',' + a + ')';
+    }
+    return c;
+  }
+
+  function hexMix(a, b, k) {
+    const key = a + b + k;
+    let c = colorCache[key];
+    if (!c) {
+      const x = parseInt(a.slice(1), 16), y = parseInt(b.slice(1), 16);
+      const r = Math.round(((x >> 16) & 255) * (1 - k) + ((y >> 16) & 255) * k);
+      const g = Math.round(((x >> 8) & 255) * (1 - k) + ((y >> 8) & 255) * k);
+      const bl = Math.round((x & 255) * (1 - k) + (y & 255) * k);
+      c = colorCache[key] = 'rgb(' + r + ',' + g + ',' + bl + ')';
+    }
+    return c;
+  }
+
+  function mFont(size) { ctx.font = 'bold ' + Math.round(size * U) + 'px ' + MENU_FONT; }
+
+  function mText(str, x, y, color, size, align) {
+    mFont(size);
+    ctx.textAlign = align || 'center';
+    ctx.fillStyle = color;
+    ctx.fillText(str, x, y);
+  }
+
+  /** Text with a hard drop shadow - the pixel-art way to lift it. */
+  function mShadowText(str, x, y, color, size, align, shadow) {
+    mFont(size);
+    ctx.textAlign = align || 'center';
+    ctx.fillStyle = shadow || 'rgba(0,0,0,0.8)';
+    ctx.fillText(str, x, y + Math.max(1, Math.round(size * U / 7)));
+    ctx.fillStyle = color;
+    ctx.fillText(str, x, y);
+  }
+
+  /** Shrinks the text rather than letting it run out of its box. */
+  function mFitText(str, x, y, color, size, maxW, align, shadow) {
+    let s = size;
+    mFont(s);
+    while (s > 4 && ctx.measureText(str).width > maxW) { s -= 0.5; mFont(s); }
+    if (shadow) mShadowText(str, x, y, color, s, align);
+    else mText(str, x, y, color, s, align);
+  }
+
+  /** A rectangle with stepped corners - the pixel answer to a radius. */
+  function mPath(x, y, w, h, n, append) {
+    if (!append) ctx.beginPath();
+    ctx.moveTo(x + n, y);
+    ctx.lineTo(x + w - n, y); ctx.lineTo(x + w - n, y + n); ctx.lineTo(x + w, y + n);
+    ctx.lineTo(x + w, y + h - n); ctx.lineTo(x + w - n, y + h - n); ctx.lineTo(x + w - n, y + h);
+    ctx.lineTo(x + n, y + h); ctx.lineTo(x + n, y + h - n); ctx.lineTo(x, y + h - n);
+    ctx.lineTo(x, y + n); ctx.lineTo(x + n, y + n);
     ctx.closePath();
   }
 
-  /** A panel with a hairline edge - the one container style used everywhere. */
-  function panel(x, y, w, h, edge, fill) {
-    ctx.save();
-    ctx.fillStyle = fill || 'rgba(10, 26, 22, 0.82)';
-    roundRect(x, y, w, h, 7 * UNIT);
-    ctx.fill();
-    ctx.strokeStyle = edge || 'rgba(126, 240, 255, 0.28)';
-    ctx.lineWidth = 2 * UNIT;
-    ctx.stroke();
-    ctx.restore();
-  }
-
-  function menuText(text, y, color, size, align, x) {
-    ctx.save();
-    ctx.font = 'bold ' + Math.round(size * UNIT) + 'px "Press Start 2P", monospace';
-    ctx.textAlign = align || 'center';
-    ctx.fillStyle = color;
-    ctx.fillText(text, x === undefined ? W / 2 : x, y);
-    ctx.restore();
-  }
-
-  /** The wordmark: one offset shadow layer, then the face. No glow soup. */
-  function drawWordmark(y, scale) {
-    const size = 21 * UNIT * scale;
-    ctx.save();
-    ctx.font = 'bold ' + Math.round(size) + 'px "Press Start 2P", monospace';
-    ctx.textAlign = 'center';
-    ctx.fillStyle = '#8a3b12';
-    ctx.fillText('BURGER MUNCH', W / 2, y + 3.5 * UNIT);
-    const grad = ctx.createLinearGradient(0, y - size * 0.8, 0, y + size * 0.25);
-    grad.addColorStop(0, '#ffe79a');
-    grad.addColorStop(0.55, '#ffd447');
-    grad.addColorStop(1, '#f2a03c');
-    ctx.fillStyle = grad;
-    ctx.fillText('BURGER MUNCH', W / 2, y);
-    ctx.restore();
-  }
-
   /**
-   * Attract strip: the burger runs a lap being chased, with a pellet trail
-   * it eats as it goes. It shows the whole game in one glance.
+   * The one container: chunky drop, coloured edge ring, face, a lit top row
+   * and a shaded bottom row. The face is filled first and the edge drawn as a
+   * ring, so a translucent face lets the map through instead of the edge.
    */
-  function drawAttract(y) {
-    const t = game.menuTime;
-    const span = W + 160 * UNIT;
-    const x = ((t * 92 * UNIT) % span) - 80 * UNIT;
-    const skin = currentMap().skin;
-
-    ctx.save();
-    for (let i = 0; i < 16; i++) {
-      const px2 = 24 * UNIT + i * (W - 48 * UNIT) / 15;
-      if (px2 < x + 10 * UNIT) continue;              // eaten already
-      ctx.globalAlpha = 0.5;
-      ctx.fillStyle = '#9fe4ff';
-      ctx.beginPath();
-      ctx.arc(px2, y, 2.2 * UNIT, 0, Math.PI * 2);
+  function mBox(x, y, w, h, o) {
+    x = Math.round(x); y = Math.round(y); w = Math.round(w); h = Math.round(h);
+    const n = Math.round((o.notch === undefined ? 3 : o.notch) * U);
+    const b = Math.max(1, Math.round((o.border === undefined ? 2 : o.border) * U));
+    const drop = o.drop === undefined ? 4 : o.drop;
+    const inN = Math.max(Math.round(U), n - b);
+    if (drop) {
+      ctx.fillStyle = o.dropColor || 'rgba(0,0,0,0.45)';
+      mPath(x, y + Math.round(drop * U), w, h, n);
       ctx.fill();
     }
-    ctx.restore();
-
-    const chase = [['#e8412f', 0], ['#f7b2ff', 1], ['#4fd2ff', 2]];
-    for (let i = chase.length - 1; i >= 0; i--) {
-      const gx = x - (46 + chase[i][1] * 38) * UNIT;
-      if (gx < -40 * UNIT) continue;
-      Sprites.drawGhost(ctx, gx, y, 27 * UNIT, chase[i][0],
-        Math.floor(t * 8) % 2, 'normal', 'right', skin);
-    }
-    Sprites.drawPac(ctx, x, y, 31 * UNIT, 'right',
-      reducedMotion ? 0.6 : Math.abs(Math.sin(t * 7)));
-  }
-
-  /** Map row: name, blurb and a dot per map so the choice is obvious. */
-  function drawMapCard(top) {
-    const map = currentMap();
-    const h = H * 0.108, w = W * 0.78, x = (W - w) / 2;
-    panel(x, top, w, h, 'rgba(126, 240, 255, 0.3)');
-    menuText('MAP', top + h * 0.26, 'rgba(160, 200, 196, 0.9)', 7);
-    menuText(map.name, top + h * 0.6, '#ffd447', 13);
-    menuText(map.blurb, top + h * 0.86, 'rgba(206, 228, 224, 0.72)', 6);
-
-    // the arrows, nudged outward on a slow cycle so they read as controls
-    const nudge = reducedMotion ? 0 : Math.sin(game.menuTime * 3) * 2 * UNIT;
-    menuText('\u2039', top + h * 0.62, '#7ef0ff', 16, 'center', x - 9 * UNIT - nudge);
-    menuText('\u203a', top + h * 0.62, '#7ef0ff', 16, 'center', x + w + 9 * UNIT + nudge);
-
-    const dots = Maze.MAPS.length, dy = top + h + 9 * UNIT;
-    for (let i = 0; i < dots; i++) {
-      const dx = W / 2 + (i - (dots - 1) / 2) * 11 * UNIT;
-      ctx.beginPath();
-      ctx.arc(dx, dy, 2.6 * UNIT, 0, Math.PI * 2);
-      ctx.fillStyle = Maze.MAPS[i].key === game.mapKey ? '#ffd447' : 'rgba(255,255,255,0.26)';
-      ctx.fill();
-    }
-  }
-
-  /** The three modes side by side, so the whole choice is visible at once. */
-  function drawModePills(top) {
-    const h = H * 0.058, gap = 7 * UNIT;
-    const w = (W * 0.78 - gap * 2) / 3, x0 = (W - W * 0.78) / 2;
-    menuText('MODE', top - 7 * UNIT, 'rgba(160, 200, 196, 0.9)', 7);
-    DIFFICULTY_ORDER.forEach(function (key, i) {
-      const d = DIFFICULTIES[key];
-      const on = key === game.difficulty;
-      const x = x0 + i * (w + gap);
-      ctx.save();
-      ctx.fillStyle = on ? d.color : 'rgba(16, 38, 32, 0.8)';
-      roundRect(x, top, w, h, 5 * UNIT);
-      ctx.fill();
-      ctx.strokeStyle = on ? '#ffffff' : 'rgba(255,255,255,0.16)';
-      ctx.lineWidth = 2 * UNIT;
-      ctx.stroke();
-      ctx.restore();
-      menuText(d.name, top + h * 0.64, on ? '#0d1411' : 'rgba(226, 240, 236, 0.55)',
-        on ? 10 : 9, 'center', x + w / 2);
-    });
-    const sel = diff();
-    menuText(sel.blurb, top + h + 11 * UNIT, 'rgba(206, 228, 224, 0.8)', 6);
-    menuText(String(sel.lives) + ' LIVES  \u00b7  ' + sel.levels + ' BOARDS  \u00b7  SCORE x' + sel.scoreMul,
-      top + h + 21 * UNIT, sel.color, 6);
-  }
-
-  /** The one thing to press. Everything else on the menu is optional. */
-  function drawPlayButton(top) {
-    const w = W * 0.5, h = H * 0.072, x = (W - w) / 2;
-    const beat = reducedMotion ? 0 : (0.5 + 0.5 * Math.sin(game.menuTime * 3.4));
-    ctx.save();
-    ctx.globalAlpha = 0.28 + beat * 0.22;
-    ctx.fillStyle = '#ffd447';
-    roundRect(x - 4 * UNIT, top - 4 * UNIT, w + 8 * UNIT, h + 8 * UNIT, 9 * UNIT);
+    ctx.fillStyle = o.face;
+    mPath(x + b, y + b, w - 2 * b, h - 2 * b, inN);
     ctx.fill();
-    ctx.restore();
+    ctx.fillStyle = o.edge;
+    mPath(x, y, w, h, n);
+    mPath(x + b, y + b, w - 2 * b, h - 2 * b, inN, true);
+    ctx.fill('evenodd');
+    if (o.light !== null) {
+      const lh = Math.max(1, Math.round(U * 1.2));
+      const lw = w - 2 * (b + inN);
+      ctx.fillStyle = o.light || 'rgba(255,255,255,0.09)';
+      ctx.fillRect(x + b + inN, y + b, lw, lh);
+      ctx.fillStyle = o.shade || 'rgba(0,0,0,0.22)';
+      ctx.fillRect(x + b + inN, y + h - b - lh, lw, lh);
+    }
+  }
 
+  /** A stepped ring, for layered borders and light bleeding inwards. */
+  function mRing(x, y, w, h, n, thick, color) {
+    ctx.fillStyle = color;
+    mPath(x, y, w, h, n);
+    mPath(x + thick, y + thick, w - 2 * thick, h - 2 * thick, Math.max(1, n - thick), true);
+    ctx.fill('evenodd');
+  }
+
+  /** Draws a '#' pattern, merging runs so a row is one fillRect, not five. */
+  function mIcon(rows, x, y, s, color) {
+    ctx.fillStyle = color;
+    x = Math.round(x); y = Math.round(y);
+    for (let r = 0; r < rows.length; r++) {
+      const row = rows[r];
+      for (let c = 0; c < row.length; c++) {
+        if (row.charCodeAt(c) !== 35) continue;
+        const start = c;
+        while (c + 1 < row.length && row.charCodeAt(c + 1) === 35) c++;
+        ctx.fillRect(x + start * s, y + r * s, (c - start + 1) * s, s);
+      }
+    }
+  }
+
+  /** A solid pixel triangle pointing left (-1) or right (1). */
+  function mChevron(cx, cy, s, dir, color) {
+    ctx.fillStyle = color;
+    for (let i = -3; i <= 3; i++) {
+      const len = (4 - Math.abs(i)) * s;
+      const y = Math.round(cy + i * s - s / 2);
+      const x = dir > 0 ? Math.round(cx - 2 * s) : Math.round(cx + 2 * s - len);
+      ctx.fillRect(x, y, len, s);
+    }
+  }
+
+  // one radial gradient per colour, reused by moving and scaling it
+  const glowCache = {};
+  function mGlow(x, y, r, color, alpha, squash) {
+    let g = glowCache[color];
+    if (!g) {
+      g = ctx.createRadialGradient(0, 0, 0, 0, 0, 1);
+      g.addColorStop(0, hexA(color, 1));
+      g.addColorStop(1, hexA(color, 0));     // same hue, so no dark fringe
+      glowCache[color] = g;
+    }
     ctx.save();
-    const g = ctx.createLinearGradient(0, top, 0, top + h);
-    g.addColorStop(0, '#ffe07a');
-    g.addColorStop(1, '#f0a92c');
+    ctx.globalAlpha *= alpha;
+    ctx.translate(x, y);
+    ctx.scale(r, r * (squash || 1));
     ctx.fillStyle = g;
-    roundRect(x, top, w, h, 7 * UNIT);
-    ctx.fill();
-    ctx.strokeStyle = '#7a4c05';
-    ctx.lineWidth = 2 * UNIT;
-    ctx.stroke();
+    ctx.fillRect(-1, -1, 2, 2);
     ctx.restore();
-    menuText('PLAY', top + h * 0.66, '#3a2000', 17);
-    menuText('PRESS ENTER', top + h + 13 * UNIT, 'rgba(206, 228, 224, 0.78)', 7);
   }
 
-  function drawTitleScreen() {
-    const fade = Math.min(1, game.menuTime * 2.2);     // one gentle entrance
+  /** A stepped pixel shadow under a character. */
+  function mShadow(x, y, rx, alpha) {
+    const u = Math.max(1, Math.round(U * 1.4));
+    x = Math.round(x); y = Math.round(y);
+    ctx.fillStyle = hexA('#000000', alpha);
+    ctx.fillRect(Math.round(x - rx * 0.7), y - u, Math.round(rx * 1.4), u);
+    ctx.fillRect(Math.round(x - rx), y, Math.round(rx * 2), u);
+    ctx.fillRect(Math.round(x - rx * 0.7), y + u, Math.round(rx * 1.4), u);
+  }
+
+  /* ---- hit regions: written while drawing, read by the mouse --------- */
+
+  function addRegion(id, x, y, w, h) {
+    let r = menu.regions[menu.regionCount];
+    if (!r) { r = {}; menu.regions[menu.regionCount] = r; }
+    r.id = id; r.x = x; r.y = y; r.w = w; r.h = h;
+    menu.regionCount++;
+  }
+
+  function hitRegion(px, py) {
+    for (let i = menu.regionCount - 1; i >= 0; i--) {
+      const r = menu.regions[i];
+      if (px >= r.x && px <= r.x + r.w && py >= r.y && py <= r.y + r.h) return r.id;
+    }
+    return null;
+  }
+
+  /** Each section rises in a beat after the one above it. */
+  function mSection(i) {
     ctx.save();
-    const bg = ctx.createLinearGradient(0, 0, 0, H);
-    bg.addColorStop(0, 'rgba(4, 14, 12, 0.93)');
-    bg.addColorStop(0.5, 'rgba(6, 20, 17, 0.88)');
-    bg.addColorStop(1, 'rgba(3, 10, 9, 0.95)');
-    ctx.fillStyle = bg;
+    if (reducedMotion) return;
+    const k = easeOut((game.menuTime - 0.08 - i * 0.045) / 0.26);
+    ctx.globalAlpha *= k;
+    if (k < 1) ctx.translate(0, Math.round((1 - k) * 8 * U));
+  }
+
+  /* ---- menu clock: transitions, change detection, parallax ----------- */
+
+  function mapIndex(key) {
+    for (let i = 0; i < Maze.MAPS.length; i++) if (Maze.MAPS[i].key === key) return i;
+    return 0;
+  }
+
+  function updateMenu(dt) {
+    const k = Math.min(1, dt * 4);
+    menu.mx += (menu.tx - menu.mx) * k;
+    menu.my += (menu.ty - menu.my) * k;
+    if (menu.mapK < 1) menu.mapK = Math.min(1, menu.mapK + dt / 0.2);
+    if (menu.modeK < 1) menu.modeK = Math.min(1, menu.modeK + dt / 0.25);
+
+    // map and mode change through the keyboard as well as the mouse, so
+    // changes are noticed here rather than in every place that makes them
+    if (menu.lastMap !== game.mapKey) {
+      if (menu.lastMap !== null) {
+        let d = mapIndex(game.mapKey) - mapIndex(menu.lastMap);
+        if (d > 1) d = -1; else if (d < -1) d = 1;
+        menu.mapPrev = menu.lastMap;
+        menu.mapDir = d < 0 ? -1 : 1;
+        menu.mapK = 0;
+        if (menu.audioReady) Sound.select();
+      }
+      menu.lastMap = game.mapKey;
+    }
+    if (menu.lastMode !== game.difficulty) {
+      if (menu.lastMode !== null) {
+        menu.modePrev = menu.lastMode;
+        menu.modeK = 0;
+        if (menu.audioReady) Sound.select();
+      }
+      menu.lastMode = game.difficulty;
+    }
+  }
+
+  const parVec = { x: 0, y: 0 };
+  /** The map drifts a few pixels behind the menu and leans toward the mouse. */
+  function menuParallax() {
+    if (reducedMotion) { parVec.x = 0; parVec.y = 0; return parVec; }
+    const t = game.menuTime;
+    parVec.x = Math.round(Math.sin(t * 0.21) * 2 * U + menu.mx * 3 * U);
+    parVec.y = Math.round(Math.cos(t * 0.17) * 2 * U + menu.my * 2 * U);
+    return parVec;
+  }
+
+  /* ---- the shell ------------------------------------------------------ */
+
+  let vignette = null;
+  const MOTES = [];
+  for (let i = 0; i < 14; i++) {
+    MOTES.push({ x: Math.random(), y: Math.random(), s: 1 + Math.round(Math.random()),
+      sp: 5 + Math.random() * 8, ph: Math.random() * 6.28 });
+  }
+
+  function drawShell() {
+    if (!vignette) {
+      vignette = ctx.createRadialGradient(W / 2, H * 0.45, H * 0.22, W / 2, H * 0.45, H * 0.8);
+      vignette.addColorStop(0, 'rgba(0,0,0,0)');
+      vignette.addColorStop(1, 'rgba(0,0,0,0.66)');
+    }
+    // the map stays visible: a light tint, then the vignette
+    ctx.fillStyle = 'rgba(3, 10, 9, 0.38)';
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = vignette;
     ctx.fillRect(0, 0, W, H);
 
-    ctx.globalAlpha = fade;
-    const rise = (1 - fade) * 14 * UNIT;
-    ctx.translate(0, rise);
+    const x = PANEL_X, y = PANEL_Y, w = PANEL_W, h = PANEL_H;
+    const n = Math.round(7 * U);
+    // hard outer rim, teal edge, then light bleeding in from the edge
+    mRing(x - 2 * U, y - 2 * U, w + 4 * U, h + 4 * U, n + 2 * U, 2 * U, '#020806');
+    mBox(x, y, w, h, { face: 'rgba(7, 20, 17, 0.8)', edge: '#2c5d54', notch: 7, border: 2,
+      drop: 0, light: 'rgba(126,240,255,0.12)', shade: 'rgba(0,0,0,0.3)' });
+    mRing(x + 2 * U, y + 2 * U, w - 4 * U, h - 4 * U, n - 2 * U, U, 'rgba(126,240,255,0.16)');
+    mRing(x + 3 * U, y + 3 * U, w - 6 * U, h - 6 * U, n - 3 * U, U, 'rgba(126,240,255,0.07)');
+    mRing(x + 4 * U, y + 4 * U, w - 8 * U, h - 8 * U, n - 4 * U, 2 * U, 'rgba(126,240,255,0.03)');
 
-    const breathe = reducedMotion ? 1 : 1 + Math.sin(game.menuTime * 1.8) * 0.012;
-    drawWordmark(H * 0.125, breathe);
-    menuText('A FORTNITE ARCADE MAZE', H * 0.163, 'rgba(126, 240, 255, 0.75)', 7);
+    // gold brackets and rivets in each corner
+    const L = Math.round(14 * U), T = Math.round(2 * U), inset = Math.round(6 * U);
+    const bx0 = x + inset, by0 = y + inset, bx1 = x + w - inset, by1 = y + h - inset;
+    ctx.fillStyle = '#c9952e';
+    ctx.fillRect(bx0, by0, L, T); ctx.fillRect(bx0, by0, T, L);
+    ctx.fillRect(bx1 - L, by0, L, T); ctx.fillRect(bx1 - T, by0, T, L);
+    ctx.fillRect(bx0, by1 - T, L, T); ctx.fillRect(bx0, by1 - L, T, L);
+    ctx.fillRect(bx1 - L, by1 - T, L, T); ctx.fillRect(bx1 - T, by1 - L, T, L);
+    ctx.fillStyle = '#ffd447';
+    ctx.fillRect(bx0, by0, T, T); ctx.fillRect(bx1 - T, by0, T, T);
+    ctx.fillRect(bx0, by1 - T, T, T); ctx.fillRect(bx1 - T, by1 - T, T, T);
+  }
 
-    drawAttract(H * 0.235);
-    drawMapCard(H * 0.3);
-    drawModePills(H * 0.475);
-    drawPlayButton(H * 0.63);
+  /** Dust in the light: a handful of slow motes, drawn last and faint. */
+  function drawMotes() {
+    if (reducedMotion) return;
+    const t = game.menuTime;
+    ctx.fillStyle = '#ffe9a0';
+    for (let i = 0; i < MOTES.length; i++) {
+      const m = MOTES[i];
+      const px = Math.round(m.x * W + Math.sin(t * 0.4 + m.ph) * 8 * U);
+      const py = Math.round((((m.y * H - t * m.sp * U) % H) + H) % H);
+      ctx.globalAlpha = 0.08 + 0.1 * (0.5 + 0.5 * Math.sin(t * 1.3 + m.ph));
+      const s = Math.round(m.s * U);
+      ctx.fillRect(px, py, s, s);
+    }
+    ctx.globalAlpha = 1;
+  }
 
-    menuText('\u2190 \u2192 MAP    \u2191 \u2193 OR 1 2 3 MODE', H * 0.775,
-      'rgba(206, 228, 224, 0.55)', 6);
-    drawAchievementRow(H * 0.845);
+  /* ---- title ---------------------------------------------------------- */
 
+  let titleArt = null;
+  if (document.fonts && document.fonts.ready) {
+    // the first build may have used a fallback font; rebuild once it is in
+    document.fonts.ready.then(function () { titleArt = null; });
+  }
+
+  function buildTitle() {
+    const size = Math.round(23 * U);
+    const font = 'bold ' + size + 'px ' + MENU_FONT;
+    const probe = document.createElement('canvas').getContext('2d');
+    probe.font = font;
+    const tw = Math.ceil(probe.measureText('BURGER MUNCH').width);
+    const depth = 5;
+    const pad = Math.ceil(4 * U);
+    const w = tw + pad * 2;
+    const h = Math.ceil(size * 1.15 + depth * U + pad * 2);
+    const base = pad + size;
+    const make = function () {
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      const x = c.getContext('2d');
+      x.font = font; x.textAlign = 'left'; x.textBaseline = 'alphabetic';
+      return { canvas: c, ctx: x };
+    };
+    const full = make(), face = make(), shine = make();
+    const f = full.ctx;
+    // extrusion: stepped layers, darkest at the back
+    for (let i = depth; i >= 1; i--) {
+      f.fillStyle = i >= depth - 1 ? '#3a1606' : (i >= 3 ? '#6b2a0c' : '#8a3b12');
+      f.fillText('BURGER MUNCH', pad, base + i * U);
+    }
+    // a one-pixel dark outline around the face
+    f.fillStyle = '#2a1004';
+    f.fillText('BURGER MUNCH', pad - U, base);
+    f.fillText('BURGER MUNCH', pad + U, base);
+    f.fillText('BURGER MUNCH', pad, base - U);
+    const g = f.createLinearGradient(0, base - size, 0, base);
+    g.addColorStop(0, '#fff3bd');
+    g.addColorStop(0.45, '#ffd447');
+    g.addColorStop(1, '#f29a2e');
+    f.fillStyle = g;
+    f.fillText('BURGER MUNCH', pad, base);
+    face.ctx.fillStyle = '#ffffff';
+    face.ctx.fillText('BURGER MUNCH', pad, base);
+    return { w: w, h: h, base: base, full: full.canvas, face: face.canvas, shine: shine };
+  }
+
+  function drawTitle(cx, baseY) {
+    if (!titleArt) titleArt = buildTitle();
+    const T = titleArt;
+    const t = game.menuTime;
+    const float = reducedMotion ? 0 : Math.round(Math.sin(t * 1.6) * 2 * U);
+    const x = Math.round(cx - T.w / 2);
+    const y = Math.round(baseY - T.base + float);
+
+    const breathe = reducedMotion ? 0 : Math.sin(t * 1.1) * 0.06;
+    mGlow(cx, baseY - 9 * U + float, T.w * 0.62, '#ffb23a', 0.34 + breathe, 0.3);
+    ctx.drawImage(T.full, x, y);
+
+    // every few seconds a narrow band of light crosses the letters
+    if (!reducedMotion) {
+      const p = (t % 4.6) / 0.9;
+      if (p < 1 && t > 1) {
+        const s = T.shine;
+        s.ctx.globalCompositeOperation = 'source-over';
+        s.ctx.clearRect(0, 0, T.w, T.h);
+        s.ctx.drawImage(T.face, 0, 0);
+        s.ctx.globalCompositeOperation = 'source-atop';
+        const bx = -T.h + p * (T.w + T.h * 2);
+        const bw = 10 * U;
+        s.ctx.fillStyle = 'rgba(255,255,255,0.9)';
+        s.ctx.beginPath();
+        s.ctx.moveTo(bx, 0); s.ctx.lineTo(bx + bw, 0);
+        s.ctx.lineTo(bx + bw - T.h * 0.6, T.h); s.ctx.lineTo(bx - T.h * 0.6, T.h);
+        s.ctx.closePath(); s.ctx.fill();
+        s.ctx.globalCompositeOperation = 'source-over';
+        ctx.save();
+        ctx.globalAlpha *= 0.6;
+        ctx.drawImage(s.canvas, x, y);
+        ctx.restore();
+      }
+    }
+  }
+
+  /* ---- the cast ------------------------------------------------------- */
+
+  function drawCast(cy) {
+    const t = game.menuTime;
+    const skin = currentMap().skin;
+    const slots = [-94, -50, 50, 94];
+    for (let i = 0; i < 4; i++) {
+      const x = W / 2 + slots[i] * U;
+      const bob = reducedMotion ? 0 : Math.sin(t * 2.2 + i * 1.3) * 2.5 * U;
+      const col = CAST_COLORS[i];
+      mGlow(x, cy, 20 * U, col, 0.2, 0.9);
+      mShadow(x, cy + 16 * U, 10 * U - bob * 0.4, 0.38);
+      Sprites.drawGhost(ctx, x, Math.round(cy + bob), 26 * U, col,
+        reducedMotion ? 0 : Math.floor(t * 4 + i) % 2, 'normal', slots[i] < 0 ? 'right' : 'left', skin);
+    }
+
+    // the burger: idles, and every few seconds hops and chomps
+    const hp = (t % 3.2) / 0.42;
+    const hopping = !reducedMotion && hp < 1 && t > 0.8;
+    const hop = hopping ? Math.sin(hp * Math.PI) * 7 * U : 0;
+    const bob = reducedMotion ? 0 : Math.sin(t * 2.6) * 1.5 * U;
+    const by = Math.round(cy - 2 * U + bob - hop);
+    mGlow(W / 2, cy, 34 * U, '#ffd447', 0.3, 0.75);
+    mShadow(W / 2, cy + 19 * U, 14 * U - hop * 0.5, 0.48);
+    const mouth = reducedMotion ? 0.6
+      : (hopping ? Math.abs(Math.sin(hp * Math.PI * 2)) : 0.3 + 0.25 * Math.sin(t * 3));
+    Sprites.drawPac(ctx, W / 2, by, 38 * U, 'right', mouth);
+
+    // a little YOU tag, pointing up at the hero
+    const tagW = Math.round(24 * U), tagH = Math.round(10 * U);
+    const tx = Math.round(W / 2 - tagW / 2), ty = Math.round(cy + 23 * U);
+    ctx.fillStyle = '#ffd447';
+    ctx.fillRect(Math.round(W / 2 - U), ty - Math.round(U * 1.5), Math.round(2 * U), Math.round(U * 1.5));
+    mBox(tx, ty, tagW, tagH, { face: '#ffd447', edge: '#3a2000', border: 1, notch: 1.5, drop: 2,
+      light: 'rgba(255,255,255,0.5)', shade: 'rgba(160,80,0,0.4)' });
+    mText('YOU', W / 2, ty + 7.6 * U, '#3a2000', 5.5);
+  }
+
+  /* ---- map ------------------------------------------------------------ */
+
+  const thumbs = {};
+  /** A minimap from the real board, kept once it has been seen. */
+  function mapThumb(key) {
+    if (thumbs[key]) return thumbs[key];
+    if (key !== game.mapKey || !game.board) return null;
+    const c = document.createElement('canvas');
+    c.width = Math.round(37 * U); c.height = Math.round(41 * U);
+    const t = c.getContext('2d');
+    t.imageSmoothingEnabled = true;          // a minimap wants averaging
+    t.drawImage(game.board, 0, 0, c.width, c.height);
+    thumbs[key] = c;
+    return c;
+  }
+
+  function mapContent(map, x, top, w, h) {
+    const accent = MAP_ACCENT[map.key] || '#7ef0ff';
+    const tw = Math.round(37 * U), th = Math.round(41 * U);
+    const tx = Math.round(x + 9 * U), ty = Math.round(top + (h - th) / 2);
+    ctx.fillStyle = '#030a08';
+    ctx.fillRect(tx - 2 * U, ty - 2 * U, tw + 4 * U, th + 4 * U);
+    mRing(tx - Math.round(U), ty - Math.round(U), tw + Math.round(2 * U), th + Math.round(2 * U), 0, Math.round(U), accent);
+    const img = mapThumb(map.key);
+    if (img) ctx.drawImage(img, tx, ty, tw, th);
+
+    const textX = tx + tw + 11 * U;
+    const maxW = x + w - 10 * U - textX;
+    mFitText(map.sub || '', textX, top + 17 * U, accent, 6, maxW, 'left', true);
+    mFitText(map.name, textX, top + 33 * U, '#ffd447', 13, maxW, 'left', true);
+    mFitText(map.blurb, textX, top + 46 * U, 'rgba(206,228,224,0.72)', 5, maxW, 'left');
+  }
+
+  function arrowButton(id, x, y, w, h, dir) {
+    const hov = menu.hover === id;
+    const prs = hov && menu.pressed === id;
+    const lift = prs ? U : (hov ? -2 * U : 0);
+    mBox(x, y + lift, w, h, { face: hov ? '#173a31' : '#0c211c', edge: hov ? '#ffd447' : '#2f6f63',
+      notch: 2, border: 2, drop: prs ? 1 : 3 });
+    const pulse = reducedMotion || hov ? 1 : 0.7 + 0.3 * Math.sin(game.menuTime * 3);
+    const nudge = hov && !reducedMotion ? dir * 1.5 * U : 0;
+    ctx.save();
+    ctx.globalAlpha *= pulse;
+    mChevron(x + w / 2 + nudge, y + lift + h / 2, Math.round(2 * U), dir, hov ? '#ffd447' : '#7ef0ff');
+    ctx.restore();
+    addRegion(id, x, y, w, h);
+  }
+
+  function drawMapSection(top) {
+    const h = Math.round(56 * U), btnW = Math.round(26 * U), gap = Math.round(5 * U);
+    const cardX = CX0 + btnW + gap, cardW = CW - 2 * (btnW + gap);
+    const map = currentMap();
+    const accent = MAP_ACCENT[map.key] || '#7ef0ff';
+
+    arrowButton('map-prev', CX0, top + 8 * U, btnW, h - 16 * U, -1);
+    arrowButton('map-next', CX1 - btnW, top + 8 * U, btnW, h - 16 * U, 1);
+
+    mBox(cardX, top, cardW, h, { face: '#0b1f1a', edge: hexMix(accent, '#0b1f1a', 0.35),
+      notch: 3, border: 2, drop: 4 });
+
+    // the new map slides in from the side it came from; the old one leaves
+    // the other way. Clipped to the card, about 200ms.
+    const k = easeOut(menu.mapK);
+    const slide = 34 * U;
+    const inset = Math.round(2 * U);
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(cardX + inset, top + inset, cardW - inset * 2, h - inset * 2);
+    ctx.clip();
+    const base = ctx.globalAlpha;
+    if (menu.mapK < 1 && menu.mapPrev) {
+      ctx.globalAlpha = base * (1 - k);
+      mapContent(Maze.get(menu.mapPrev), cardX - menu.mapDir * slide * k, top, cardW, h);
+    }
+    ctx.globalAlpha = base * (menu.mapK < 1 ? k : 1);
+    mapContent(map, cardX + menu.mapDir * slide * (1 - k), top, cardW, h);
+    ctx.restore();
+
+    // a folder tab names the section, sitting on the card's top edge
+    const tabW = Math.round(34 * U), tabH = Math.round(10 * U);
+    const tabX = Math.round(cardX + 10 * U), tabY = Math.round(top - tabH + 2 * U);
+    mBox(tabX, tabY, tabW, tabH, { face: accent, edge: '#06120f', notch: 1.5, border: 1,
+      drop: 0, light: 'rgba(255,255,255,0.45)', shade: null });
+    mText('MAP', tabX + tabW / 2, tabY + 7.6 * U, '#06120f', 5.5);
+
+    // which of the four maps this is
+    const count = Maze.MAPS.length, ds = Math.round(3 * U), dg = Math.round(5 * U);
+    let dx = Math.round(W / 2 - (count * ds + (count - 1) * dg) / 2);
+    const dy = Math.round(top + h + 8 * U);
+    for (let i = 0; i < count; i++) {
+      const on = Maze.MAPS[i].key === map.key;
+      ctx.fillStyle = on ? '#ffd447' : 'rgba(255,255,255,0.22)';
+      ctx.fillRect(dx, on ? dy - U : dy, on ? ds + Math.round(U) : ds, on ? ds + Math.round(U) : ds);
+      dx += ds + dg;
+    }
+  }
+
+  /* ---- difficulty ----------------------------------------------------- */
+
+  function drawDifficulty(top) {
+    mText('CHOOSE DIFFICULTY', W / 2, top - 6 * U, 'rgba(160,200,196,0.7)', 5);
+    const gap = Math.round(8 * U), ch = Math.round(54 * U);
+    const cw = Math.round((CW - 2 * gap) / 3);
+    const t = game.menuTime;
+
+    for (let i = 0; i < 3; i++) {
+      const key = DIFFICULTY_ORDER[i], d = DIFFICULTIES[key], id = MODE_IDS[i];
+      const accent = MODE_ACCENT[key] || d.color;
+      const sel = key === game.difficulty;
+      const hov = menu.hover === id;
+      const prs = hov && menu.pressed === id;
+      const x0 = CX0 + i * (cw + gap);
+
+      // grow the box rather than scale it, so the pixels stay crisp
+      let grow = 0, lift = 0;
+      if (sel) {
+        const snap = menu.modeK < 1 ? 1 - easeOut(menu.modeK) : 0;
+        grow = Math.round((3 + snap * 3) * U);
+      } else if (hov) lift = Math.round(-2 * U);
+      if (prs) lift = Math.round(U);
+      const x = x0 - grow, y = top - grow + lift, w = cw + grow * 2, h = ch + grow * 2;
+      const cx = x0 + cw / 2;
+
+      if (sel) {
+        const pulse = reducedMotion ? 0.5 : 0.5 + 0.5 * Math.sin(t * 4);
+        ctx.fillStyle = hexA(accent, (0.14 + pulse * 0.12).toFixed(2));
+        mPath(x - 4 * U, y - 4 * U, w + 8 * U, h + 8 * U, 6 * U);
+        ctx.fill();
+      }
+      const edge = sel ? accent : (hov ? hexMix(accent, '#14302a', 0.4) : '#24433c');
+      const face = sel ? hexMix(accent, '#0a1a16', 0.8) : (hov ? '#11271f' : '#0b1d18');
+      mBox(x, y, w, h, { face: face, edge: edge, border: sel ? 3 : 2, notch: 3,
+        drop: prs ? 1 : 4, light: sel ? hexA(accent, 0.3) : undefined });
+
+      const yy = top + lift;
+      mShadowText(d.name, cx, yy + 17 * U, sel ? '#ffffff' : (hov ? accent : 'rgba(226,240,236,0.62)'),
+        sel ? 10 : 9);
+
+      // stars: how fast the enemies are
+      const s = Math.round(2 * U), sg = Math.round(3 * U);
+      const sw = 3 * 5 * s + 2 * sg;
+      let sx = Math.round(cx - sw / 2);
+      for (let k = 0; k < 3; k++) {
+        const filled = k < (d.stars || 1);
+        mIcon(PIX.star, sx, yy + 23 * U, s,
+          filled ? (sel ? '#ffd447' : (hov ? '#c9a640' : '#6f6236')) : (sel ? 'rgba(0,0,0,0.35)' : '#1c3630'));
+        sx += 5 * s + sg;
+      }
+      mText(d.tag || '', cx, yy + 46 * U, sel ? accent : 'rgba(206,228,224,0.42)', 6);
+
+      if (sel) {
+        // a check badge on the corner, so the choice reads even in greyscale
+        const bs = Math.round(12 * U);
+        const bx = x + w - bs + Math.round(3 * U), by = y - Math.round(4 * U);
+        mBox(bx, by, bs, bs, { face: accent, edge: '#06120f', border: 1.5, notch: 1.5, drop: 2,
+          light: 'rgba(255,255,255,0.45)', shade: null });
+        const cs = Math.max(1, Math.round(U));
+        mIcon(PIX.check, bx + (bs - 7 * cs) / 2, by + (bs - 5 * cs) / 2, cs, '#06120f');
+      }
+      addRegion(id, x0, top, cw, ch);
+    }
+  }
+
+  /** The numbers behind the choice; they count to their new values. */
+  function drawStats(top) {
+    const h = Math.round(28 * U);
+    mBox(CX0, top, CW, h, { face: '#0a1b17', edge: '#1f4038', border: 2, notch: 2, drop: 3 });
+    const d = diff();
+    const prev = (menu.modeK < 1 && DIFFICULTIES[menu.modePrev]) || d;
+    const k = easeOut(menu.modeK);
+    const lerp = function (a, b) { return a + (b - a) * k; };
+    const accent = MODE_ACCENT[d.key] || d.color;
+    const flash = menu.modeK < 1 ? 1 - k : 0;
+    const valColor = flash > 0.05 ? accent : '#ffd447';
+
+    const cells = 4, cw = CW / cells;
+    ctx.fillStyle = '#1f4038';
+    for (let i = 1; i < cells; i++) {
+      ctx.fillRect(Math.round(CX0 + i * cw), Math.round(top + 6 * U), Math.round(U), Math.round(h - 12 * U));
+    }
+    const ly = top + 10 * U, vy = top + 23 * U;
+    const labels = ['ENEMY SPEED', 'LIVES', 'BOARDS', 'SCORE BONUS'];
+    for (let i = 0; i < cells; i++) {
+      mText(labels[i], CX0 + cw * (i + 0.5), ly, 'rgba(160,200,196,0.75)', 4.5);
+    }
+
+    // enemy speed as stars, filling across when it changes
+    const fill = lerp(prev.stars || 1, d.stars || 1);
+    const s = Math.round(1.8 * U), sg = Math.round(2 * U);
+    let sx = Math.round(CX0 + cw * 0.5 - (15 * s + 2 * sg) / 2);
+    for (let j = 0; j < 3; j++) {
+      mIcon(PIX.star, sx, vy - 9 * U, s, '#1c3630');
+      const a = clamp01(fill - j);
+      if (a > 0) {
+        ctx.save(); ctx.globalAlpha *= a;
+        mIcon(PIX.star, sx, vy - 9 * U, s, valColor);
+        ctx.restore();
+      }
+      sx += 5 * s + sg;
+    }
+
+    // lives with a heart
+    const lives = Math.round(lerp(prev.lives, d.lives));
+    const hs = Math.round(1.4 * U);
+    mFont(8);
+    const lw = ctx.measureText('×' + lives).width;
+    const groupW = 7 * hs + 3 * U + lw;
+    const gx = CX0 + cw * 1.5 - groupW / 2;
+    mIcon(PIX.heart, gx, vy - 7.5 * U, hs, '#ff5a6e');
+    mShadowText('×' + lives, gx + 7 * hs + 3 * U, vy, valColor, 8, 'left');
+
+    mShadowText(String(Math.round(lerp(prev.levels, d.levels))), CX0 + cw * 2.5, vy, valColor, 8);
+    mShadowText('×' + Math.round(lerp(prev.scoreMul, d.scoreMul)), CX0 + cw * 3.5, vy, valColor, 8);
+  }
+
+  /* ---- PLAY ----------------------------------------------------------- */
+
+  let playGrad = null;
+
+  function drawPlay(top) {
+    const w = Math.round(214 * U), h = Math.round(40 * U), x = Math.round((W - w) / 2);
+    const hov = menu.hover === 'play';
+    const prs = hov && menu.pressed === 'play';
+    const t = game.menuTime;
+    const lift = prs ? Math.round(3 * U) : (hov ? Math.round(-2 * U) : 0);
+    const ext = prs ? 1 : (hov ? 7 : 5);
+    const y = Math.round(top + lift);
+
+    const beat = reducedMotion ? 0.5 : 0.5 + 0.5 * Math.sin(t * 3.2);
+    mGlow(W / 2, top + h / 2 + 2 * U, w * 0.66, '#ffc23a', (hov ? 0.46 : 0.3) + beat * 0.12, 0.4);
+
+    // the extrusion: the button sits on a block, and pressing it sinks in
+    ctx.fillStyle = '#5a2f04';
+    mPath(x, y + Math.round(ext * U), w, h, Math.round(4 * U));
+    ctx.fill();
+    ctx.fillStyle = '#2a1500';
+    ctx.fillRect(x + Math.round(4 * U), y + h + Math.round(ext * U) - Math.round(U), w - Math.round(8 * U), Math.round(U));
+
+    if (!playGrad) {
+      playGrad = ctx.createLinearGradient(0, 0, 0, h);
+      playGrad.addColorStop(0, '#fff0a0');
+      playGrad.addColorStop(0.4, '#ffd447');
+      playGrad.addColorStop(1, '#f5a623');
+    }
+    ctx.save();
+    ctx.translate(x, y);
+    mBox(0, 0, w, h, { face: playGrad, edge: '#3a2000', border: 2.5, notch: 4, drop: 0,
+      light: 'rgba(255,255,255,0.6)', shade: 'rgba(170,85,0,0.5)' });
+
+    // a sliver of light that crosses the button now and then
+    if (!reducedMotion) {
+      const p = (t % 2.8) / 0.75;
+      if (p < 1) {
+        const b = Math.round(2.5 * U);
+        ctx.save();
+        mPath(b, b, w - 2 * b, h - 2 * b, Math.round(1.5 * U));
+        ctx.clip();
+        const bx = -30 * U + p * (w + 60 * U);
+        ctx.fillStyle = 'rgba(255,255,255,0.4)';
+        ctx.beginPath();
+        ctx.moveTo(bx, 0); ctx.lineTo(bx + 12 * U, 0);
+        ctx.lineTo(bx + 12 * U - h * 0.5, h); ctx.lineTo(bx - h * 0.5, h);
+        ctx.closePath(); ctx.fill();
+        ctx.fillStyle = 'rgba(255,255,255,0.22)';
+        ctx.beginPath();
+        ctx.moveTo(bx + 16 * U, 0); ctx.lineTo(bx + 20 * U, 0);
+        ctx.lineTo(bx + 20 * U - h * 0.5, h); ctx.lineTo(bx + 16 * U - h * 0.5, h);
+        ctx.closePath(); ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    // ▶ PLAY, engraved: light underneath, dark on top
+    mFont(18);
+    const label = 'PLAY';
+    const tw = ctx.measureText(label).width;
+    const cs = Math.round(3 * U);
+    const groupW = 4 * cs + 8 * U + tw;
+    const gx = w / 2 - groupW / 2;
+    const ty = Math.round(h / 2 + 18 * U * 0.46);
+    mChevron(gx + 2 * cs, h / 2 + Math.round(U * 0.5), cs, 1, '#fff5c8');
+    mChevron(gx + 2 * cs, h / 2 - Math.round(U * 0.5), cs, 1, '#3a2000');
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#fff5c8';
+    ctx.fillText(label, gx + 4 * cs + 8 * U, ty + Math.round(1.5 * U));
+    ctx.fillStyle = '#3a2000';
+    ctx.fillText(label, gx + 4 * cs + 8 * U, ty);
+    ctx.restore();
+
+    addRegion('play', x, top - 2 * U, w, h + 9 * U);
+
+    // the keyboard route, as a keycap
+    mFont(5.5);
+    const kText = 'ENTER', rest = 'TO DROP IN';
+    const kw = Math.round(ctx.measureText(kText).width + 8 * U), kh = Math.round(10 * U);
+    const rw = ctx.measureText(rest).width;
+    const total = kw + 5 * U + rw;
+    const kx = Math.round(W / 2 - total / 2), ky = Math.round(top + h + 12 * U);
+    mBox(kx, ky, kw, kh, { face: '#1a2f2a', edge: '#4f8076', border: 1, notch: 1, drop: 2,
+      light: 'rgba(255,255,255,0.18)' });
+    mText(kText, kx + kw / 2, ky + 7.4 * U, '#e9fff9', 5.5);
+    mText(rest, kx + kw + 5 * U, ky + 7.4 * U, 'rgba(206,228,224,0.7)', 5.5, 'left');
+  }
+
+  /* ---- progress ------------------------------------------------------- */
+
+  function drawProgress(top) {
+    const h = Math.round(32 * U);
+    mBox(CX0, top, CW, h, { face: '#0a1b17', edge: '#1f4038', border: 2, notch: 2, drop: 3 });
+    const list = Achievements.LIST;
+    const got = Achievements.earnedCount(), total = Achievements.total;
+    const hi = ACH_IDS.indexOf(menu.hover);
+
+    mIcon(PIX.trophy, CX0 + 9 * U, top + 4.5 * U, Math.round(1.4 * U), '#ffd447');
+    const headX = CX0 + 22 * U, headY = top + 12 * U;
+    if (hi >= 0) {
+      // hovering a pip names it, in the header, so nothing pops over the menu
+      const a = list[hi], has = Achievements.has(a.id);
+      mFitText((has ? a.name : 'LOCKED') + '  ·  ' + String(a.hint).toUpperCase(),
+        headX, headY, has ? a.icon : 'rgba(206,228,224,0.75)', 5.5, CX1 - 50 * U - headX, 'left');
+    } else {
+      mText('ACHIEVEMENTS', headX, headY, '#e9fff9', 6, 'left');
+    }
+    mShadowText(got + ' / ' + total, CX1 - 9 * U, headY, '#ffd447', 8, 'right');
+
+    const ps = Math.round(10 * U), pg = Math.round(4 * U);
+    const py = Math.round(top + 17 * U);
+    let px = Math.round(CX0 + 9 * U);
+    for (let i = 0; i < list.length; i++) {
+      const a = list[i], has = Achievements.has(a.id);
+      if (has) {
+        mGlow(px + ps / 2, py + ps / 2, ps * 1.1, a.icon, 0.35);
+        mBox(px, py, ps, ps, { face: a.icon, edge: hexMix(a.icon, '#000000', 0.5), border: 1,
+          notch: 1, drop: 2, light: 'rgba(255,255,255,0.55)' });
+      } else {
+        mBox(px, py, ps, ps, { face: '#0e211c', edge: '#24433c', border: 1, notch: 1, drop: 0,
+          light: null });
+      }
+      if (i === hi) mRing(px - Math.round(2 * U), py - Math.round(2 * U), ps + Math.round(4 * U),
+        ps + Math.round(4 * U), Math.round(U), Math.round(U), '#ffd447');
+      addRegion(ACH_IDS[i], px, py, ps, ps);
+      px += ps + pg;
+    }
+
+    // a segmented bar that fills as the screen opens
+    const bx = px + Math.round(6 * U), bw = Math.round(CX1 - 9 * U - bx);
+    const bh = Math.round(6 * U), by = Math.round(py + (ps - bh) / 2);
+    ctx.fillStyle = '#050f0c';
+    ctx.fillRect(bx, by, bw, bh);
+    const open = reducedMotion ? 1 : easeOut((game.menuTime - 0.45) / 0.6);
+    const fw = Math.round(bw * (total ? got / total : 0) * open);
+    if (fw > 0) {
+      ctx.fillStyle = '#ffd447';
+      ctx.fillRect(bx, by, fw, bh);
+      ctx.fillStyle = '#fff3bd';
+      ctx.fillRect(bx, by, fw, Math.round(U));
+    }
+    ctx.fillStyle = '#0a1b17';
+    const seg = Math.round(6 * U);
+    for (let sx = bx + seg; sx < bx + bw; sx += seg) ctx.fillRect(sx, by, Math.round(U), bh);
+    mRing(bx - Math.round(U), by - Math.round(U), bw + Math.round(2 * U), bh + Math.round(2 * U), 0,
+      Math.round(U), '#24433c');
+  }
+
+  /* ---- today's challenge and the footer ------------------------------- */
+
+  function drawChallenge(top) {
+    const h = Math.round(20 * U);
+    mBox(CX0, top, CW, h, { face: '#0d1a12', edge: '#355a2a', border: 1.5, notch: 2, drop: 2 });
+    mIcon(PIX.flag, CX0 + 8 * U, top + 5.5 * U, Math.round(1.3 * U), '#8ee07a');
+    const lx = CX0 + 20 * U;
+    mText("TODAY'S CHALLENGE", lx, top + 12.5 * U, '#8ee07a', 5, 'left');
+    mFont(5);
+    const lw = ctx.measureText("TODAY'S CHALLENGE").width;
+    mFitText(CHALLENGE, CX1 - 8 * U, top + 12.5 * U, '#e9fff9', 5.5, CX1 - 8 * U - (lx + lw + 10 * U), 'right');
+  }
+
+  function drawFooter(y) {
+    mText('← → MAP   ↑ ↓ MODE   M SOUND', CX0 + 2 * U, y,
+      'rgba(206,228,224,0.42)', 5, 'left');
     const who = window.Leaderboard && Leaderboard.who();
-    menuText(who ? 'SIGNED IN AS ' + who.toUpperCase() : 'PLAYING AS GUEST \u00b7 SIGN IN FOR THE BOARD',
-      H * 0.945, who ? 'rgba(126, 224, 122, 0.8)' : 'rgba(206, 228, 224, 0.4)', 6);
+    const hov = menu.hover === 'signin';
+    const label = who ? 'SIGNED IN AS ' + who.toUpperCase() : 'GUEST · SIGN IN FOR THE BOARD';
+    mFont(5);
+    const lw = ctx.measureText(label).width;
+    mText(label, CX1 - 2 * U, y, hov ? '#ffd447' : (who ? 'rgba(142,224,122,0.85)' : 'rgba(206,228,224,0.55)'),
+      5, 'right');
+    if (hov) {
+      ctx.fillStyle = '#ffd447';
+      ctx.fillRect(Math.round(CX1 - 2 * U - lw), Math.round(y + 2 * U), Math.round(lw), Math.round(U));
+    }
+    addRegion('signin', CX1 - 2 * U - lw, y - 8 * U, lw, 12 * U);
+  }
+
+  /* ---- the whole screen ----------------------------------------------- */
+
+  function drawTitleScreen() {
+    menu.regionCount = 0;
+    ctx.save();
+    const fade = reducedMotion ? 1 : easeOut(game.menuTime * 3);
+    ctx.globalAlpha = fade;
+    drawShell();
+
+    mSection(0);
+    drawTitle(W / 2, 49 * U);
+    mText('A FORTNITE ARCADE MAZE', W / 2, 63 * U, 'rgba(126,240,255,0.78)', 6);
+    ctx.restore();
+
+    mSection(1); drawCast(98 * U); ctx.restore();
+    mSection(2); drawMapSection(148 * U); ctx.restore();
+    mSection(3); drawDifficulty(232 * U); ctx.restore();
+    mSection(4); drawStats(300 * U); ctx.restore();
+    mSection(5); drawPlay(339 * U); ctx.restore();
+    mSection(6); drawProgress(408 * U); ctx.restore();
+    mSection(7); drawChallenge(449 * U); ctx.restore();
+    mSection(8); drawFooter(478 * U); ctx.restore();
+
+    drawMotes();
     ctx.restore();
   }
 
@@ -1552,10 +2275,11 @@
     ctx.save();
     ctx.fillStyle = 'rgba(3, 10, 9, 0.72)';
     ctx.fillRect(0, 0, W, H);
-    const w = W * 0.64, h = H * 0.2, x = (W - w) / 2, y = H * 0.4;
-    panel(x, y, w, h, 'rgba(255, 212, 71, 0.4)');
-    menuText('PAUSED', y + h * 0.42, '#ffd447', 19);
-    menuText('ENTER OR P TO CARRY ON', y + h * 0.74, 'rgba(206, 228, 224, 0.72)', 7);
+    const w = Math.round(W * 0.62), h = Math.round(70 * U);
+    const x = Math.round((W - w) / 2), y = Math.round((H - h) / 2);
+    mBox(x, y, w, h, { face: '#0b1d18', edge: '#ffd447', border: 2, notch: 4, drop: 5 });
+    mShadowText('PAUSED', W / 2, y + 33 * U, '#ffd447', 18);
+    mText('ENTER OR P TO CARRY ON', W / 2, y + 53 * U, 'rgba(206,228,224,0.75)', 6);
     ctx.restore();
   }
 
@@ -2318,54 +3042,6 @@
     }
   }
 
-  /** A row of pips on the title screen: one per achievement, lit when earned. */
-  function drawAchievementRow(y) {
-    const list = Achievements.LIST;
-    const pip = TILE * 0.55;
-    const gap = TILE * 0.3;
-    const total = list.length * pip + (list.length - 1) * gap;
-    let x = W / 2 - total / 2;
-    bannerText('ACHIEVEMENTS  ' + Achievements.earnedCount() + '/' + Achievements.total,
-      y - TILE * 0.55, 'rgba(255,255,255,0.75)', 7);
-    list.forEach(function (def) {
-      const got = Achievements.has(def.id);
-      ctx.fillStyle = got ? def.icon : 'rgba(255,255,255,0.14)';
-      ctx.fillRect(x, y, pip, pip);
-      if (got) {
-        ctx.fillStyle = 'rgba(255,255,255,0.65)';
-        ctx.fillRect(x, y, pip, 2);
-      }
-      x += pip + gap;
-    });
-  }
-
-  /** The map selector: arrows either side of the current map's name. */
-  function drawMapPicker(y) {
-    const map = currentMap();
-    bannerText('MAP', y - H * 0.035, '#ffffff', 9);
-    const blink = Math.floor(game.frame / 18) % 2 === 0;
-    bannerText((blink ? '< ' : '  ') + map.name + (blink ? ' >' : '  '), y, '#ffd447', 15);
-    bannerText(map.blurb, y + H * 0.032, 'rgba(255,255,255,0.72)', 7);
-  }
-
-  /** The three difficulty rows, with the selected one called out. */
-  function drawModeMenu(top) {
-    bannerText('MODE', top, '#ffffff', 9);
-    DIFFICULTY_ORDER.forEach(function (key, i) {
-      const d = DIFFICULTIES[key];
-      const y = top + (0.055 + i * 0.055) * H;
-      const on = key === game.difficulty;
-      const blink = on && Math.floor(game.frame / 18) % 2 === 0;
-      bannerText((blink ? '> ' : '  ') + d.name + (blink ? ' <' : '  '),
-        y, on ? d.color : 'rgba(255,255,255,0.35)', on ? 16 : 12);
-    });
-    const sel = diff();
-    bannerText(sel.blurb, top + 0.215 * H, sel.color, 7);
-    if (sel.scoreMul > 1) {
-      bannerText('SCORE x' + sel.scoreMul, top + 0.255 * H, '#ffd447', 8);
-    }
-  }
-
 
   /* ------------------------------------------------------------------ */
   /* SYSTEM RENDERING                                                    */
@@ -2648,8 +3324,8 @@
 
   function renderLootRow() {
     // the stat hides itself while empty rather than showing a bare label
-    const slot = hud.loot.closest ? hud.loot.closest('.stat') : null;
-    if (slot) slot.style.visibility = game.lootHistory.length ? 'visible' : 'hidden';
+    // the row keeps its space while empty, so the first llama shifts nothing
+    hud.loot.style.visibility = game.lootHistory.length ? 'visible' : 'hidden';
     hud.loot.innerHTML = '';
     game.lootHistory.slice(-7).forEach(function (idx) {
       const c = document.createElement('canvas');
@@ -2674,7 +3350,10 @@
     game.frame++;
     // the menu has its own clock so its animation never depends on whether a
     // board is running behind it
-    if (game.state === STATE.TITLE) game.menuTime += dt;
+    if (game.state === STATE.TITLE) {
+      game.menuTime += dt;
+      updateMenu(dt);
+    }
 
     const quizUp = !!(window.Quiz && Quiz.active());
     if (window.Quiz) Quiz.tick(dt);
@@ -2809,6 +3488,7 @@
     Numpad1: 0, Numpad2: 1, Numpad3: 2, Numpad4: 3 };
 
   window.addEventListener('keydown', function (e) {
+    menu.audioReady = true;
     // the sign-in overlay owns the keyboard while it is showing
     if (window.Leaderboard && Leaderboard.isOpen()) return;
     // a question owns the keyboard while it is up
@@ -2864,13 +3544,15 @@
   function togglePause() {
     if (game.state !== STATE.PLAY) return;
     game.paused = !game.paused;
-    hud.pause.textContent = game.paused ? '▶ Resume' : '⏸ Pause';
+    hud.pause.textContent = game.paused ? 'Resume' : 'Pause';
+    hud.pause.dataset.state = game.paused ? 'paused' : '';
     if (!game.paused) last = performance.now();
   }
 
   function toggleMute() {
     const m = Sound.toggleMute();
-    hud.mute.textContent = m ? '🔇 Sound off' : '🔊 Sound on';
+    hud.mute.textContent = m ? 'Sound off' : 'Sound on';
+    hud.mute.dataset.state = m ? 'off' : '';
   }
 
   function toggleFullscreen() {
@@ -2885,7 +3567,7 @@
   }
 
   document.addEventListener('fullscreenchange', function () {
-    hud.full.textContent = document.fullscreenElement ? '⛶ Exit full screen' : '⛶ Full screen';
+    hud.full.textContent = document.fullscreenElement ? 'Exit full screen' : 'Full screen';
     if (window.Layout) window.Layout.fit();
   });
 
@@ -2920,9 +3602,21 @@
   let touchStart = null;
   canvas.addEventListener('touchstart', function (e) {
     const t = e.changedTouches[0];
+    Sound.unlock();
+    menu.audioReady = true;
+    if (game.state === STATE.TITLE) {
+      // a tap on the menu means the thing under it, not "start". Stopping
+      // the default also stops the browser faking a mouse click afterwards,
+      // which would otherwise fire the same choice twice.
+      e.preventDefault();
+      const p = canvasPoint(t);
+      const id = hitRegion(p.x, p.y);
+      if (id) activateMenu(id);
+      return;
+    }
     touchStart = { x: t.clientX, y: t.clientY };
     if (modeSelectable()) startGame();
-  }, { passive: true });
+  }, { passive: false });
 
   canvas.addEventListener('touchend', function (e) {
     if (!touchStart) return;
@@ -2943,9 +3637,64 @@
     btn.addEventListener('mousedown', fire);
   });
 
-  canvas.addEventListener('mousedown', function () {
+  /* The menu answers the mouse: hover lights things up, and a click counts
+     only if the button goes up over the same thing it went down on. */
+  const menuPt = { x: 0, y: 0 };
+  function canvasPoint(e) {
+    const r = canvas.getBoundingClientRect();
+    menuPt.x = (e.clientX - r.left) * W / r.width;
+    menuPt.y = (e.clientY - r.top) * H / r.height;
+    return menuPt;
+  }
+
+  function activateMenu(id) {
+    if (id === 'play') startGame();
+    else if (id === 'map-prev') cycleMap(-1);
+    else if (id === 'map-next') cycleMap(1);
+    else if (id === 'signin') { if (window.Leaderboard) Leaderboard.open(); }
+    else if (id.indexOf('mode:') === 0) setDifficulty(id.slice(5));
+  }
+
+  canvas.addEventListener('mousemove', function (e) {
+    if (game.state !== STATE.TITLE) {
+      if (menu.hover) { menu.hover = null; canvas.style.cursor = ''; }
+      return;
+    }
+    const p = canvasPoint(e);
+    menu.tx = p.x / W * 2 - 1;
+    menu.ty = p.y / H * 2 - 1;
+    const id = hitRegion(p.x, p.y);
+    if (id === menu.hover) return;
+    menu.hover = id;
+    const clickable = !!id && id.indexOf('ach:') !== 0;
+    canvas.style.cursor = clickable ? 'pointer' : '';
+    if (clickable && menu.audioReady) Sound.hover();
+  });
+
+  canvas.addEventListener('mouseleave', function () {
+    menu.hover = null; menu.pressed = null;
+    menu.tx = 0; menu.ty = 0;
+    canvas.style.cursor = '';
+  });
+
+  canvas.addEventListener('mousedown', function (e) {
     Sound.unlock();
+    menu.audioReady = true;
+    if (game.state === STATE.TITLE) {
+      const p = canvasPoint(e);
+      menu.pressed = hitRegion(p.x, p.y);
+      return;
+    }
     if (modeSelectable()) startGame();
+  });
+
+  window.addEventListener('mouseup', function (e) {
+    if (!menu.pressed) return;
+    const id = menu.pressed;
+    menu.pressed = null;
+    if (game.state !== STATE.TITLE) return;
+    const p = canvasPoint(e);
+    if (hitRegion(p.x, p.y) === id) activateMenu(id);
   });
 
   /* ------------------------------------------------------------------ */
@@ -3037,5 +3786,5 @@
   }
 
   // exposed for the smoke test / debugging in the console
-  window.__game = { game: game, pac: pac, ghosts: ghosts, startGame: startGame, STATE: STATE, TILE: TILE, updateHud: updateHud, setDifficulty: setDifficulty, setMap: setMap, DIFFICULTIES: DIFFICULTIES };
+  window.__game = { menu: menu, game: game, pac: pac, ghosts: ghosts, startGame: startGame, STATE: STATE, TILE: TILE, updateHud: updateHud, setDifficulty: setDifficulty, setMap: setMap, DIFFICULTIES: DIFFICULTIES };
 })();

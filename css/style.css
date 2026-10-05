@@ -1,5 +1,11 @@
 /* Tilted Towers Burger Munch - shell + HUD styling */
 :root {
+  --icon-pause: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 5 5' shape-rendering='crispEdges'%3E%3Cpath fill='%233a2000' d='M0 0h2v1H0zM3 0h2v1H3zM0 1h2v1H0zM3 1h2v1H3zM0 2h2v1H0zM3 2h2v1H3zM0 3h2v1H0zM3 3h2v1H3zM0 4h2v1H0zM3 4h2v1H3z'/%3E%3C/svg%3E");
+  --icon-resume: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 5 5' shape-rendering='crispEdges'%3E%3Cpath fill='%233a2000' d='M0 0h1v1H0zM0 1h3v1H0zM0 2h5v1H0zM0 3h3v1H0zM0 4h1v1H0z'/%3E%3C/svg%3E");
+  --icon-full: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 7 7' shape-rendering='crispEdges'%3E%3Cpath fill='%233a2000' d='M0 0h2v1H0zM5 0h2v1H5zM0 1h1v1H0zM6 1h1v1H6zM0 5h1v1H0zM6 5h1v1H6zM0 6h2v1H0zM5 6h2v1H5z'/%3E%3C/svg%3E");
+  --icon-sound: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 7 6' shape-rendering='crispEdges'%3E%3Cpath fill='%233a2000' d='M2 0h1v1H2zM1 1h2v1H1zM5 1h1v1H5zM0 2h3v1H0zM4 2h1v1H4zM6 2h1v1H6zM0 3h3v1H0zM4 3h1v1H4zM6 3h1v1H6zM1 4h2v1H1zM5 4h1v1H5zM2 5h1v1H2z'/%3E%3C/svg%3E");
+  --icon-mute: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 7 6' shape-rendering='crispEdges'%3E%3Cpath fill='%233a2000' d='M2 0h1v1H2zM1 1h2v1H1zM4 1h1v1H4zM6 1h1v1H6zM0 2h3v1H0zM5 2h1v1H5zM0 3h3v1H0zM5 3h1v1H5zM1 4h2v1H1zM4 4h1v1H4zM6 4h1v1H6zM2 5h1v1H2z'/%3E%3C/svg%3E");
+  --icon-board: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 7 7' shape-rendering='crispEdges'%3E%3Cpath fill='%233a2000' d='M0 0h7v1H0zM0 1h1v1H0zM2 1h3v1H2zM6 1h1v1H6zM1 2h5v1H1zM2 3h3v1H2zM3 4h1v1H3zM2 5h3v1H2zM1 6h5v1H1z'/%3E%3C/svg%3E");
   /* The board is 28x31 tiles, so its aspect ratio is 0.903 wide-to-tall.
      Size it from whichever runs out first - the width of the window or the
      height left over after the HUD - and let it grow as far as it can. */
@@ -577,3 +583,217 @@ kbd {
 }
 
 .hint strong { color: var(--gold); font-weight: normal; }
+
+/* ==========================================================================
+   Pixel icons, generated from '#' patterns into crisp inline SVGs - the
+   same art language as the canvas, and no emoji anywhere in the HUD.
+   ========================================================================== */
+.px-icon {
+  display: inline-block;
+  flex: none;
+  width: 1.15em;
+  height: 1.15em;
+  margin-right: 0.55em;
+  vertical-align: -0.2em;
+  background: no-repeat center / contain;
+}
+.px-trophy { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 7 7' shape-rendering='crispEdges'%3E%3Cpath fill='%23ffd447' d='M0 0h7v1H0zM0 1h1v1H0zM2 1h3v1H2zM6 1h1v1H6zM1 2h5v1H1zM2 3h3v1H2zM3 4h1v1H3zM2 5h3v1H2zM1 6h5v1H1z'/%3E%3C/svg%3E"); }
+.px-heart { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 7 6' shape-rendering='crispEdges'%3E%3Cpath fill='%23ff5a6e' d='M1 0h2v1H1zM4 0h2v1H4zM0 1h7v1H0zM0 2h7v1H0zM1 3h5v1H1zM2 4h3v1H2zM3 5h1v1H3z'/%3E%3C/svg%3E"); }
+.px-storm { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 7 7' shape-rendering='crispEdges'%3E%3Cpath fill='%23c6a6ff' d='M2 0h3v1H2zM1 1h1v1H1zM5 1h1v1H5zM0 2h1v1H0zM3 2h1v1H3zM6 2h1v1H6zM0 3h1v1H0zM2 3h3v1H2zM6 3h1v1H6zM0 4h1v1H0zM3 4h1v1H3zM6 4h1v1H6zM1 5h1v1H1zM5 5h1v1H5zM2 6h3v1H2z'/%3E%3C/svg%3E"); }
+.px-pin { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 5 7' shape-rendering='crispEdges'%3E%3Cpath fill='%239fd4ff' d='M1 0h3v1H1zM0 1h5v1H0zM0 2h2v1H0zM3 2h2v1H3zM0 3h5v1H0zM1 4h3v1H1zM2 5h1v1H2zM2 6h1v1H2z'/%3E%3C/svg%3E"); }
+.px-star { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 5 5' shape-rendering='crispEdges'%3E%3Cpath fill='%23ffd447' d='M2 0h1v1H2zM1 1h3v1H1zM0 2h5v1H0zM1 3h3v1H1zM1 4h1v1H1zM3 4h1v1H3z'/%3E%3C/svg%3E"); }
+.px-player { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 5 7' shape-rendering='crispEdges'%3E%3Cpath fill='%233a2000' d='M1 0h3v1H1zM1 1h3v1H1zM2 2h1v1H2zM0 3h5v1H0zM2 4h1v1H2zM1 5h1v1H1zM3 5h1v1H3zM0 6h1v1H0zM4 6h1v1H4z'/%3E%3C/svg%3E"); }
+.px-pause { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 5 5' shape-rendering='crispEdges'%3E%3Cpath fill='%233a2000' d='M0 0h2v1H0zM3 0h2v1H3zM0 1h2v1H0zM3 1h2v1H3zM0 2h2v1H0zM3 2h2v1H3zM0 3h2v1H0zM3 3h2v1H3zM0 4h2v1H0zM3 4h2v1H3z'/%3E%3C/svg%3E"); }
+.px-resume { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 5 5' shape-rendering='crispEdges'%3E%3Cpath fill='%233a2000' d='M0 0h1v1H0zM0 1h3v1H0zM0 2h5v1H0zM0 3h3v1H0zM0 4h1v1H0z'/%3E%3C/svg%3E"); }
+.px-full { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 7 7' shape-rendering='crispEdges'%3E%3Cpath fill='%233a2000' d='M0 0h2v1H0zM5 0h2v1H5zM0 1h1v1H0zM6 1h1v1H6zM0 5h1v1H0zM6 5h1v1H6zM0 6h2v1H0zM5 6h2v1H5z'/%3E%3C/svg%3E"); }
+.px-sound { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 7 6' shape-rendering='crispEdges'%3E%3Cpath fill='%233a2000' d='M2 0h1v1H2zM1 1h2v1H1zM5 1h1v1H5zM0 2h3v1H0zM4 2h1v1H4zM6 2h1v1H6zM0 3h3v1H0zM4 3h1v1H4zM6 3h1v1H6zM1 4h2v1H1zM5 4h1v1H5zM2 5h1v1H2z'/%3E%3C/svg%3E"); }
+.px-mute { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 7 6' shape-rendering='crispEdges'%3E%3Cpath fill='%233a2000' d='M2 0h1v1H2zM1 1h2v1H1zM4 1h1v1H4zM6 1h1v1H6zM0 2h3v1H0zM5 2h1v1H5zM0 3h3v1H0zM5 3h1v1H5zM1 4h2v1H1zM4 4h1v1H4zM6 4h1v1H6zM2 5h1v1H2z'/%3E%3C/svg%3E"); }
+.px-board { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 7 7' shape-rendering='crispEdges'%3E%3Cpath fill='%233a2000' d='M0 0h7v1H0zM0 1h1v1H0zM2 1h3v1H2zM6 1h1v1H6zM1 2h5v1H1zM2 3h3v1H2zM3 4h1v1H3zM2 5h3v1H2zM1 6h5v1H1z'/%3E%3C/svg%3E"); }
+
+/* ==========================================================================
+   Arcade HUD. Hard 2px corners and hard drop shadows - the pixel idiom -
+   instead of soft rounded cards.
+   ========================================================================== */
+
+/* --- top bar: score | title | high score, each in its own lane --------- */
+.topbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  border-radius: 3px;
+  border-width: 2px;
+  box-shadow: 0 5px 0 rgba(0, 0, 0, 0.5), inset 0 2px 0 rgba(255, 255, 255, 0.05);
+}
+
+.topbar .title-block {
+  padding: 0 clamp(8px, calc(var(--board) / 40), 18px);
+  border-left: 2px solid rgba(126, 240, 255, 0.1);
+  border-right: 2px solid rgba(126, 240, 255, 0.1);
+}
+
+.hud-high { align-items: flex-end; }
+.hud-high .label { color: #ffd447; display: inline-flex; align-items: center; }
+
+/* the high score is the number worth chasing: a slow gold shimmer */
+#highscore {
+  background: linear-gradient(100deg, #ffd447 0%, #ffd447 42%, #fff7d2 50%, #ffd447 58%, #ffd447 100%);
+  background-size: 320% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: none;
+  filter: drop-shadow(0 2px 0 rgba(0, 0, 0, 0.65));
+  animation: hs-shimmer 5s linear infinite;
+}
+
+@keyframes hs-shimmer {
+  0% { background-position: 100% 0; }
+  28% { background-position: 0% 0; }
+  100% { background-position: 0% 0; }
+}
+
+/* the player chip under the high score: readable, and clearly a button */
+.who {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  margin-top: 2px;
+  padding: 4px 8px;
+  font-size: clamp(7px, calc(var(--board) / 66), 10px);
+  color: #ffd447;
+  background: rgba(0, 0, 0, 0.35);
+  border: 2px solid #b8892a;
+  border-radius: 2px;
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.5);
+}
+
+.who::before {
+  content: '';
+  width: 0.9em;
+  height: 1.25em;
+  flex: none;
+  background: no-repeat center / contain;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 5 7' shape-rendering='crispEdges'%3E%3Cpath fill='%23ffd447' d='M1 0h3v1H1zM1 1h3v1H1zM2 2h1v1H2zM0 3h5v1H0zM2 4h1v1H2zM1 5h1v1H1zM3 5h1v1H3zM0 6h1v1H0zM4 6h1v1H4z'/%3E%3C/svg%3E");
+}
+
+.who:hover { color: #fff3bd; border-color: #ffd447; }
+
+/* --- buttons: hard corners, a solid ledge to press down onto ------------ */
+.controls button {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 2px;
+  box-shadow: 0 4px 0 #6b3f04;
+}
+
+.controls button::before {
+  content: '';
+  width: 1.05em;
+  height: 1.05em;
+  margin-right: 0.6em;
+  flex: none;
+  background: no-repeat center / contain;
+}
+
+#pause-btn::before { background-image: var(--icon-pause); }
+#pause-btn[data-state='paused']::before { background-image: var(--icon-resume); }
+#fullscreen-btn::before { background-image: var(--icon-full); }
+#mute-btn::before { background-image: var(--icon-sound); }
+#mute-btn[data-state='off']::before { background-image: var(--icon-mute); }
+#board-btn::before { background-image: var(--icon-board); }
+
+.controls button:hover { box-shadow: 0 6px 0 #6b3f04; transform: translateY(-2px); }
+.controls button:active { box-shadow: 0 1px 0 #6b3f04; transform: translateY(3px); }
+
+.mode-btn { border-radius: 2px; }
+.stage { border-radius: 4px; }
+canvas#game { border-radius: 2px; }
+
+@media (prefers-reduced-motion: reduce) {
+  #highscore { animation: none; }
+  .controls button:hover { transform: none; }
+}
+
+
+/* --- bottom bar: one row of status modules, then a control cluster ------
+   One row matters: every pixel this bar takes is a pixel the board gives up,
+   because the sizer fits the board into whatever the HUD leaves. */
+.bottombar {
+  container-type: inline-size;
+  container-name: bar;
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr) auto auto;
+  align-items: stretch;
+  gap: 6px;
+  padding: 7px 8px;
+  border-radius: 3px;
+  box-shadow: 0 5px 0 rgba(0, 0, 0, 0.5), inset 0 2px 0 rgba(255, 255, 255, 0.05);
+}
+
+.bottombar .module {
+  min-width: 0;
+  justify-content: center;
+  padding: 5px 8px 6px;
+  gap: 4px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 2px solid rgba(126, 240, 255, 0.13);
+  border-radius: 2px;
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.04), inset 0 -2px 0 rgba(0, 0, 0, 0.35);
+}
+
+.bottombar .module .label { display: inline-flex; align-items: center; white-space: nowrap; }
+.bottombar .module .value { white-space: nowrap; }
+.bottombar .module .mode-btn { align-self: flex-start; }
+
+/* the map name is the longest value: the widest lane and a smaller face */
+.module-map .map-btn {
+  max-width: 100%;
+  overflow: hidden;
+  font-size: clamp(8px, calc(var(--board) / 64), 12px);
+}
+
+/* the four controls as a 2 x 2 cluster of icon keys. Each keeps its words
+   for screen readers and names its key in the tooltip. */
+.bottombar .controls {
+  display: grid;
+  grid-template-columns: repeat(2, auto);
+  gap: 5px;
+  align-content: center;
+}
+
+.bottombar .controls button {
+  width: clamp(26px, calc(var(--board) / 17), 36px);
+  height: clamp(22px, calc(var(--board) / 21), 30px);
+  padding: 0;
+  font-size: 0;
+  justify-content: center;
+}
+
+.bottombar .controls button::before {
+  width: clamp(11px, calc(var(--board) / 42), 15px);
+  height: clamp(11px, calc(var(--board) / 42), 15px);
+  margin: 0;
+}
+
+/* the loot row sits under the score, the same height as the player chip on
+   the other side, so it costs the bar nothing */
+.loot-row {
+  display: flex;
+  gap: 3px;
+  min-height: clamp(14px, calc(var(--board) / 34), 20px);
+}
+
+.loot-row .loot-icon { width: clamp(14px, calc(var(--board) / 34), 20px); }
+
+.who { padding: 2px 7px; }
+
+/* a narrow bar puts the controls on their own row rather than squeezing */
+@container bar (max-width: 470px) {
+  .bottombar { grid-template-columns: auto auto minmax(0, 1fr) auto; }
+  .bottombar .controls {
+    grid-column: 1 / -1;
+    grid-template-columns: repeat(4, auto);
+    justify-content: center;
+  }
+}

@@ -115,6 +115,14 @@
         tone(n, 0.12, 'square', 0.07, i * 0.09);
       });
     },
+    // the menu: a soft blip on hover, a two-note click on a choice
+    hover: function () {
+      tone(880, 0.03, 'square', 0.022);
+    },
+    select: function () {
+      tone(660, 0.05, 'square', 0.045);
+      tone(990, 0.06, 'square', 0.04, 0.045);
+    },
     tick: function () {
       tone(1200, 0.05, 'square', 0.05);
     },

@@ -17,6 +17,7 @@
     {
       key: 'tilted',
       name: 'TILTED TOWERS',
+      sub: 'URBAN CENTRE',
       theme: 'city',
       skin: 'tomato',
       blurb: 'CONCRETE TOWERS, ROADS AND THE RIVER',
@@ -57,6 +58,7 @@
     {
       key: 'divot',
       name: 'DUSTY DIVOT',
+      sub: 'METEOR CRATER',
       theme: 'crater',
       skin: 'raven',
       blurb: 'THE METEOR CRATER AND ITS RESEARCH SITE',
@@ -97,6 +99,7 @@
     {
       key: 'lake',
       name: 'LOOT LAKE',
+      sub: 'THE SHALLOWS',
       theme: 'lake',
       skin: 'jonesy',
       hazard: 'water',
@@ -138,6 +141,7 @@
     {
       key: 'park',
       name: 'PLEASANT PARK',
+      sub: 'THE SUBURBS',
       theme: 'park',
       skin: 'cuddle',
       hazard: 'hedge',
