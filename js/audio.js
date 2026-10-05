@@ -47,6 +47,7 @@
     },
     power: function () {
       tone(180, 0.28, 'sawtooth', 0.07, 0, 520);
+      [523, 659, 784, 1046].forEach(function (n, i) { tone(n, 0.08, 'square', 0.05, 0.05 + i * 0.06); });
     },
     eatGhost: function () {
       tone(300, 0.10, 'square', 0.09, 0, 900);

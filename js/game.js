@@ -459,7 +459,10 @@
     resetPositions();
   }
 
+  const MUNCH_TIME = 7.5;
+
   function resetPositions() {
+    game.munchTimer = 0;
     // losing a life is punishment enough; a setback does not carry over, and
     // a fresh start gets a moment before the next question
     game.setbacks = {};
@@ -924,6 +927,11 @@
     const mult = Math.min(COMBO_MAX, 1 + Math.floor(game.combo / 10));
     if (mult !== game.comboMult) {
       game.comboMult = mult;
+      game.comboPulse = 0.35;
+      if (mult === 5) {
+        FX.announce('FEVER!', 'x5 COMBO', '#ff6ad5', 0.8);
+        FX.shake(1, 0.15);
+      }
       if (mult > game.bestMult) { game.bestMult = mult; grantAchievements(); }
       if (mult > 1) {
         FX.float(x, y - TILE, 'COMBO x' + mult, '#ff9ad5', { size: 11, life: 1.3 });
@@ -955,7 +963,9 @@
     const d = diff();
     const o = opts || {};
     const base = n * d.scoreMul;
-    const total = Math.round(base * (o.noCombo ? 1 : game.comboMult) * scoreEventMul());
+    // MUNCH MODE doubles everything you score while it runs
+    const munch = game.munchTimer > 0 ? 2 : 1;
+    const total = Math.round(base * (o.noCombo ? 1 : game.comboMult) * scoreEventMul() * munch);
     if (bucket && game.tally[bucket] !== undefined) game.tally[bucket] += total;
     if (!o.noCombo && game.comboMult > 1) {
       game.tally.combo += total - Math.round(base * scoreEventMul());
@@ -963,7 +973,8 @@
 
     // a satisfying popup for anything worth noticing
     if (o.x !== undefined && !o.quiet && (total >= 100 || o.pop)) {
-      FX.float(o.x, o.y, '+' + total, o.color || '#ffd447', { size: total >= 800 ? 13 : 10 });
+      FX.float(o.x, o.y, '+' + total, o.color || '#ffd447',
+        { size: o.size || (total >= 800 ? 13 : 10), life: o.size ? 0.55 : undefined });
     }
 
     game.score += total;
@@ -1011,7 +1022,8 @@
     bumpCombo(pac.x, pac.y);
 
     if (t === T.PELLET) {
-      addScore(10, 'pellets', { x: pac.x, y: pac.y });
+      addScore(10, 'pellets', { x: pac.x, y: pac.y - TILE * 0.4,
+        pop: game.comboMult > 1, size: Math.min(9, 6 + game.comboMult), color: '#9fe4ff' });
       Sound.waka();
       FX.burst(pac.x, pac.y, ['#4fc3ff', '#eafaff'], { count: 4, speed: 45, size: 2, life: 0.3 });
     } else {
@@ -1019,7 +1031,10 @@
       Sound.power();
       FX.burst(pac.x, pac.y, ['#f5c132', '#fff3b0'], { count: 16, speed: 120, size: 3 });
       FX.ring(pac.x, pac.y, '#f5c132', TILE * 3, 0.5, 3);
-      FX.shake(3, 0.25);
+      FX.shake(2, 0.2);
+      FX.flash('#ffd447', 0.3, 0.22);
+      FX.announce('MUNCH MODE!', 'EVERYTHING SCORES DOUBLE', '#ffd447', 1.3);
+      game.munchTimer = MUNCH_TIME;
       game.frightTimer = frightDuration();
       game.ghostsEaten = 0;
       ghosts.forEach(function (g) {
@@ -1045,6 +1060,8 @@
     grantAchievements({ noHit: clean, clearTime: seconds });
     game.state = STATE.LEVEL_CLEAR;
     game.flashTimer = 2.2;
+    game.munchTimer = 0;
+    game.clearInfo = { bonus: levelBonus, combo: game.bestMult, score: game.score, clean: clean };
     FX.flash('#ffffff', 0.35, 0.3);
     FX.shake(5, 0.4);
     Sound.levelUp();
@@ -1222,7 +1239,12 @@
       ? (pac.moving ? Math.abs(Math.sin(pac.mouth)) : 0.35)
       : 0.35;
     mShadow(pac.x, pac.y + TILE * 0.58, TILE * 0.42, 0.4);
-    mGlow(pac.x, pac.y, TILE * 0.95, '#ffd447', 0.2);
+    if (game.munchTimer > 0) {
+      const beat = reducedMotion ? 0.5 : 0.5 + 0.5 * Math.sin(game.frame * 0.35);
+      mGlow(pac.x, pac.y, TILE * 1.7, '#ffb21e', 0.45 + 0.25 * beat);
+    } else {
+      mGlow(pac.x, pac.y, TILE * 0.95, '#ffd447', 0.2);
+    }
     const bob = pac.moving && !reducedMotion ? Math.round(Math.abs(Math.sin(pac.mouth)) * -UNIT) : 0;
     Sprites.drawPac(ctx, pac.x, pac.y + bob, TILE * 1.35, pac.dir, open);
   }
@@ -1274,7 +1296,9 @@
 
     if (game.state === STATE.LEVEL_CLEAR) {
       // flash the city between normal and blown-out white
-      const flash = Math.floor(game.flashTimer * 6) % 2 === 0;
+      // a beat of stillness, then a short burst of flashing, then calm for the tally
+      const since = 2.2 - game.flashTimer;
+      const flash = !reducedMotion && since > 0.25 && since < 0.9 && Math.floor(since * 10) % 2 === 0;
       ctx.drawImage(game.board, 0, 0);
       if (flash) {
         ctx.save();
@@ -1301,8 +1325,15 @@
     if (game.state === STATE.DYING) {
       Sprites.drawPacDeath(ctx, pac.x, pac.y, TILE * 1.35, Math.min(1, game.deathTimer / 1.3));
       drawBoss();
-    } else if (game.state !== STATE.LEVEL_CLEAR && game.state !== STATE.TITLE
-      && game.state !== STATE.WIN) {
+    } else if (game.state === STATE.LEVEL_CLEAR) {
+      // the enemies freeze where they stood; the burger celebrates
+      drawGhosts();
+      const since = 2.2 - game.flashTimer;
+      const hop = reducedMotion || since < 0.25 ? 0 : Math.abs(Math.sin((since - 0.25) * 9)) * 6 * UNIT;
+      mShadow(pac.x, pac.y + TILE * 0.58, TILE * 0.42, 0.4);
+      mGlow(pac.x, pac.y, TILE * 1.4, '#ffd447', 0.4);
+      Sprites.drawPac(ctx, pac.x, Math.round(pac.y - hop), TILE * 1.35, 'right', 0.6);
+    } else if (game.state !== STATE.TITLE && game.state !== STATE.WIN) {
       drawBoss();
       if (!game.bonusRound) drawGhosts();
       drawPac();
@@ -1320,6 +1351,7 @@
       bannerText('READY!', centerOf(17) + 6 * UNIT, diff().color, 16);
     }
     if (game.state === STATE.WIN) drawVictory();
+    if (game.state === STATE.LEVEL_CLEAR && game.clearInfo) drawBoardCleared();
 
     if (game.state === STATE.GAME_OVER) {
       ctx.fillStyle = 'rgba(0,0,0,0.62)';
@@ -2276,6 +2308,31 @@
     ctx.restore();
   }
 
+  function drawBoardCleared() {
+    const since = 2.2 - game.flashTimer;
+    if (since < 0.25) return;                       // the hitstop beat
+    const k = Math.min(1, (since - 0.25) / 0.2);
+    const info = game.clearInfo;
+    ctx.save();
+    ctx.globalAlpha = k;
+    const w = Math.round(W * 0.66), h = Math.round(92 * U);
+    const x = Math.round((W - w) / 2), y = Math.round(H * 0.36 + (1 - k) * 10 * U);
+    ctx.fillStyle = 'rgba(3, 10, 9, 0.45)';
+    ctx.fillRect(0, 0, W, H);
+    mBox(x, y, w, h, { face: '#0b1d18', edge: '#ffd447', border: 2.5, notch: 4, drop: 5 });
+    mShadowText('BOARD CLEARED!', W / 2, y + 22 * U, '#ffd447', 15);
+    // the bonus counts up quickly once the card is in
+    const count = Math.min(1, Math.max(0, (since - 0.5) / 0.6));
+    const rows = [['SCORE', String(info.score)], ['BEST COMBO', 'x' + info.combo],
+      ['BONUS', '+' + Math.round(info.bonus * count) + (info.clean && count >= 1 ? '  NO HIT!' : '')]];
+    for (let i = 0; i < rows.length; i++) {
+      const ry = y + (40 + i * 15) * U;
+      mText(rows[i][0], x + 16 * U, ry, 'rgba(160,200,196,0.85)', 6.5, 'left');
+      mShadowText(rows[i][1], x + w - 16 * U, ry, i === 2 ? '#7ee07a' : '#ffffff', 7.5, 'right');
+    }
+    ctx.restore();
+  }
+
   function drawPauseScreen() {
     ctx.save();
     ctx.fillStyle = 'rgba(3, 10, 9, 0.72)';
@@ -3122,26 +3179,46 @@
       return;
     }
 
-    // --- combo, top left ---
+    // --- combo, top left: a badge that pops whenever the multiplier moves ---
     if (game.comboMult > 1 || game.combo >= 3) {
-      const pulse = 0.5 + 0.5 * Math.sin(game.frame * 0.25);
+      const m = game.comboMult;
+      const col = m >= 8 ? '#7ef0ff' : (m >= 5 ? '#ff6ad5' : (m >= 3 ? '#ff9a3c' : '#ffd447'));
+      const pop = reducedMotion ? 0 : Math.max(0, game.comboPulse || 0) / 0.35;
+      const grow = Math.round(pop * 4 * UNIT);
+      const bw = Math.round(64 * UNIT), bh = Math.round(24 * UNIT);
+      const bx = Math.round(TILE * 0.6) - grow, by = Math.round(TILE * 0.5) - grow;
       ctx.save();
-      ctx.textAlign = 'left';
-      ctx.font = 'bold ' + Math.round(10 * UNIT) + 'px "Press Start 2P", monospace';
-      ctx.lineWidth = 4 * UNIT;
-      ctx.strokeStyle = 'rgba(0,0,0,0.85)';
-      const label = 'COMBO x' + game.comboMult;
-      ctx.strokeText(label, TILE * 0.8, TILE * 1.6);
-      ctx.fillStyle = game.comboMult >= 4 ? '#ff9ad5' : '#ffd447';
-      ctx.globalAlpha = 0.75 + 0.25 * pulse;
-      ctx.fillText(label, TILE * 0.8, TILE * 1.6);
-      // the window ticking away
-      ctx.globalAlpha = 1;
-      const w = TILE * 4;
-      ctx.fillStyle = 'rgba(255,255,255,0.2)';
-      ctx.fillRect(TILE * 0.8, TILE * 1.85, w, 3);
-      ctx.fillStyle = '#ff9ad5';
-      ctx.fillRect(TILE * 0.8, TILE * 1.85, w * Math.max(0, game.comboTimer / COMBO_WINDOW), 3);
+      if (m >= 5 && !reducedMotion) mGlow(bx + bw / 2, by + bh / 2, bw * 0.7, col, 0.25 + pop * 0.3, 0.5);
+      mBox(bx, by, bw + grow * 2, bh + grow * 2, { face: pop > 0.3 ? hexMix(col, '#0b1d18', 0.55) : '#0b1d18',
+        edge: col, border: 2, notch: 2, drop: 3 });
+      mText('COMBO', bx + 7 * UNIT, by + grow + 10 * UNIT, 'rgba(226,240,236,0.8)', 5, 'left');
+      mShadowText('x' + m, bx + bw + grow * 2 - 7 * UNIT, by + grow + 18 * UNIT, pop > 0.3 ? '#ffffff' : col,
+        11 + pop * 4, 'right');
+      // the chain window draining away
+      const k = Math.max(0, game.comboTimer / COMBO_WINDOW);
+      ctx.fillStyle = 'rgba(255,255,255,0.15)';
+      ctx.fillRect(bx + 7 * UNIT, by + grow * 2 + bh - 6 * UNIT, 22 * UNIT, 2 * UNIT);
+      ctx.fillStyle = col;
+      ctx.fillRect(bx + 7 * UNIT, by + grow * 2 + bh - 6 * UNIT, Math.round(22 * UNIT * k), 2 * UNIT);
+      ctx.restore();
+    }
+
+    // --- MUNCH MODE timer, bottom centre ---
+    if (game.munchTimer > 0) {
+      const k = game.munchTimer / MUNCH_TIME;
+      const urgent = game.munchTimer < 2.5;
+      const blink = !reducedMotion && urgent && Math.floor(game.munchTimer * (game.munchTimer < 1.2 ? 10 : 5)) % 2 === 0;
+      const segs = 10, sw = Math.round(7 * UNIT), sg = Math.round(2 * UNIT);
+      const bw = Math.round(46 * UNIT) + segs * (sw + sg);
+      const bx = Math.round(W / 2 - bw / 2), by = Math.round(H - TILE * 1.45);
+      ctx.save();
+      mBox(bx, by, bw, Math.round(16 * UNIT), { face: '#1a1206', edge: blink ? '#ffffff' : '#ffb21e', border: 2, notch: 2, drop: 3 });
+      mShadowText('MUNCH', bx + 7 * UNIT, by + 11 * UNIT, '#ffd447', 6, 'left');
+      const lit = Math.ceil(k * segs);
+      for (let i = 0; i < segs; i++) {
+        ctx.fillStyle = i < lit ? (blink ? '#ffffff' : '#ffd447') : 'rgba(255,212,71,0.15)';
+        ctx.fillRect(bx + Math.round(40 * UNIT) + i * (sw + sg), by + Math.round(5 * UNIT), sw, Math.round(6 * UNIT));
+      }
       ctx.restore();
     }
 
@@ -3390,6 +3467,8 @@
       case STATE.PLAY:
         if (game.shieldGrace > 0) game.shieldGrace -= dt;
         if (game.newHighTimer > 0) game.newHighTimer -= dt;
+        if (game.munchTimer > 0) game.munchTimer -= dt;
+        if (game.comboPulse > 0) game.comboPulse -= dt;
         updateCombo(dt);
         updateModes(dt);
         updatePac(dt);
